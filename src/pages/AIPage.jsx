@@ -1,4 +1,5 @@
 import { TrendingUp, Settings, BarChart3, Shield } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function AIPage() {
   return (
@@ -36,10 +37,13 @@ export default function AIPage() {
           </div>
         </div>
 
-        <button className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg flex items-center justify-center gap-2">
+        <Link
+          to="/ai/monitoring"
+          className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg flex items-center justify-center gap-2"
+        >
           <Settings size={18} />
           Настроить AI мониторинг
-        </button>
+        </Link>
       </div>
 
       {/* Manual Monitoring */}
@@ -74,7 +78,7 @@ export default function AIPage() {
           <p className="font-medium text-sm">Risk Profile</p>
           <p className="text-gray-400 text-xs">Сбалансированный</p>
         </button>
-        
+
         <button className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30">
           <BarChart3 className="text-[#00E5FF] mb-2" size={24} />
           <p className="font-medium text-sm">Performance</p>
