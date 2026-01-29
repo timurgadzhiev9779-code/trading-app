@@ -1,7 +1,10 @@
 import { Menu, Mail, TrendingUp, Pause } from 'lucide-react'
-import { portfolio, aiSignals, positions } from '../data/mockData'
+import { aiSignals } from '../data/mockData'
+import { useTrading } from '../context/TradingContext'
 
 export default function HomePage() {
+  const { portfolio, positions, aiEnabled, toggleAI, closePosition } = useTrading()
+
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       {/* Header */}
@@ -14,8 +17,10 @@ export default function HomePage() {
       {/* Portfolio */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <p className="text-gray-400 text-sm">Общий баланс</p>
-        <h1 className="text-4xl font-bold mb-2">${portfolio.balance.toLocaleString()}</h1>
-        
+        <h1 className="text-4xl font-bold mb-2">
+          ${portfolio.balance.toLocaleString()}
+        </h1>
+
         <div className="h-16 mb-3 flex items-end gap-1">
           {[40,45,43,48,52,50,55,58,54,60,62,58,65,68,70].map((h,i) => (
             <div key={i} className="flex-1 bg-green-500/30 rounded-t" style={{height: `${h}%`}}></div>
@@ -25,11 +30,15 @@ export default function HomePage() {
         <div className="flex justify-between text-sm">
           <div>
             <p className="text-gray-400">Доступно</p>
-            <p className="font-medium">${portfolio.available.toLocaleString()}</p>
+            <p className="font-medium">
+              ${portfolio.available.toLocaleString()}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-gray-400">P&L</p>
-            <p className="text-green-500 font-medium">+${portfolio.pnl} (+{portfolio.pnlPercent}%)</p>
+            <p className="text-green-500 font-medium">
+              +${portfolio.pnl} (+{portfolio.pnlPercent}%)
+            </p>
           </div>
         </div>
       </div>
@@ -49,9 +58,13 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+
+          <button 
+            onClick={toggleAI}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2"
+          >
             <Pause size={16} />
-            Пауза
+            {aiEnabled ? 'Пауза' : 'Запустить'}
           </button>
         </div>
       </div>
@@ -59,7 +72,9 @@ export default function HomePage() {
       {/* Signals */}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-lg font-bold">🎯 AI Сигналы</h2>
-        <span className="text-sm text-gray-400">{aiSignals.length} активных</span>
+        <span className="text-sm text-gray-400">
+          {aiSignals.length} активных
+        </span>
       </div>
 
       {aiSignals.map((s, i) => (
@@ -69,7 +84,9 @@ export default function HomePage() {
               <p className="font-bold text-lg">{s.pair}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs bg-[#00E5FF]/10 text-[#00E5FF] px-2 py-1 rounded">AI</span>
-                <span className="text-sm text-gray-400">Уверенность: {s.confidence}%</span>
+                <span className="text-sm text-gray-400">
+                  Уверенность: {s.confidence}%
+                </span>
               </div>
             </div>
             <div className="text-right">
@@ -77,7 +94,7 @@ export default function HomePage() {
               <p className="text-green-500 text-sm">+{s.profitPercent}%</p>
             </div>
           </div>
-          
+
           <div className="h-1 bg-gray-800 rounded-full mb-3 overflow-hidden">
             <div className="h-full bg-green-500" style={{width: `${s.confidence}%`}}></div>
           </div>
@@ -88,15 +105,13 @@ export default function HomePage() {
         </div>
       ))}
 
-      <button className="w-full py-3 text-[#00E5FF] text-sm font-medium">
-        Смотреть все сигналы →
-      </button>
-
       {/* Positions */}
       <div className="mt-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-bold">📊 Активные позиции</h2>
-          <span className="text-sm text-gray-400">{positions.ai.length + positions.manual.length} открыто</span>
+          <span className="text-sm text-gray-400">
+            {positions.ai.length + positions.manual.length} открыто
+          </span>
         </div>
 
         <p className="text-sm text-[#00E5FF] mb-2 flex items-center gap-2">
@@ -116,9 +131,15 @@ export default function HomePage() {
                 <p className="text-green-500 text-xs">+{p.profitPercent}%</p>
               </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-400">
+
+            <div className="flex justify-between items-center text-xs text-gray-400">
               <span>Entry: ${p.entry}</span>
-              <span>TP: ${p.tp}</span>
+              <button 
+                onClick={() => closePosition(p.pair, true)}
+                className="bg-red-500/10 text-red-500 px-3 py-1 rounded text-xs"
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         ))}
@@ -139,6 +160,15 @@ export default function HomePage() {
                 <p className="text-red-500 font-bold">${p.profit}</p>
                 <p className="text-red-500 text-xs">{p.profitPercent}%</p>
               </div>
+            </div>
+
+            <div className="flex justify-end mt-2">
+              <button 
+                onClick={() => closePosition(p.pair, false)}
+                className="bg-red-500/10 text-red-500 px-3 py-1 rounded text-xs"
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         ))}

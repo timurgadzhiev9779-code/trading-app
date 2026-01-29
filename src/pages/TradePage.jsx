@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { ChevronDown, TrendingUp } from 'lucide-react'
-import { portfolio, coins, aiSignals } from '../data/mockData'
+import { portfolio as mockPortfolio, coins, aiSignals } from '../data/mockData'
+import { useTrading } from '../context/TradingContext'
 
 export default function TradePage() {
+  const { portfolio, openPosition } = useTrading()
   const [amount, setAmount] = useState('')
   const [useAI, setUseAI] = useState(true)
 
@@ -10,6 +12,23 @@ export default function TradePage() {
   const aiSignal = aiSignals[0]
 
   const percent = (amount / portfolio.available) * 100 || 0
+
+  const handleTrade = () => {
+    if (!amount || amount <= 0) return
+    
+    openPosition({
+      pair: 'BTC/USDT',
+      type: 'LONG',
+      entry: btc.price,
+      tp: aiSignal.tp,
+      sl: aiSignal.sl,
+      amount: parseFloat(amount),
+      isAI: useAI
+    })
+    
+    setAmount('')
+    alert('Позиция открыта!')
+  }
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
@@ -106,7 +125,7 @@ export default function TradePage() {
         </div>
       </div>
 
-      {/* Summary (ВОЗВРАЩЕНО) */}
+      {/* Summary */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <h3 className="font-bold mb-3">Сводка</h3>
         <div className="space-y-2 text-sm">
@@ -130,7 +149,10 @@ export default function TradePage() {
       </div>
 
       {/* Execute */}
-      <button className="w-full bg-[#00E5FF] text-black py-4 rounded-lg font-bold text-lg">
+      <button 
+        onClick={handleTrade}
+        className="w-full bg-[#00E5FF] text-black py-4 rounded-lg font-bold text-lg"
+      >
         Открыть сделку
       </button>
     </div>
