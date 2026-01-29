@@ -3,6 +3,10 @@ import Layout from './Layout'
 import HomePage from './pages/HomePage'
 import AIPage from './pages/AIPage'
 import AIMonitoringPage from './pages/AIMonitoringPage'
+import ManualMonitoringPage from './pages/ManualMonitoringPage'
+import MarketPage from './pages/MarketPage'
+import CoinDetailPage from './pages/CoinDetailPage'
+import TradePage from './pages/TradePage'
 
 export default function App() {
   return (
@@ -11,8 +15,10 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="ai" element={<AIPage />} />
         <Route path="ai/monitoring" element={<AIMonitoringPage />} />
-        <Route path="market" element={<div className="p-4 text-white">Market Page (скоро)</div>} />
-        <Route path="trade" element={<div className="p-4 text-white">Trade Page (скоро)</div>} />
+        <Route path="ai/manual-monitoring" element={<ManualMonitoringPage />} />
+        <Route path="market" element={<MarketPage />} />
+        <Route path="market/:symbol" element={<CoinDetailPage />} />
+        <Route path="trade" element={<TradePage />} />
       </Route>
     </Routes>
   )

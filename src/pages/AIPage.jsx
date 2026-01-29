@@ -65,10 +65,10 @@ export default function AIPage() {
           </div>
         </div>
 
-        <button className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg flex items-center justify-center gap-2">
+        <Link to="/ai/manual-monitoring" className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg flex items-center justify-center gap-2">
           <Settings size={18} />
           Настроить ручной мониторинг
-        </button>
+        </Link>
       </div>
 
       {/* Quick Actions */}
