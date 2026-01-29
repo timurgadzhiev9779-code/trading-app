@@ -1,4 +1,5 @@
 import { Menu, Mail, TrendingUp, Pause } from 'lucide-react'
+import { portfolio, aiSignals, positions } from '../data/mockData'
 
 export default function HomePage() {
   return (
@@ -10,26 +11,25 @@ export default function HomePage() {
         <Mail size={24} />
       </div>
 
-      {/* Portfolio Card */}
+      {/* Portfolio */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <p className="text-gray-400 text-sm">Общий баланс</p>
-        <h1 className="text-4xl font-bold mb-2">$53,247.82</h1>
+        <h1 className="text-4xl font-bold mb-2">${portfolio.balance.toLocaleString()}</h1>
         
         <div className="h-16 mb-3 flex items-end gap-1">
           {[40,45,43,48,52,50,55,58,54,60,62,58,65,68,70].map((h,i) => (
-            <div key={i} className="flex-1 bg-green-500/30 rounded-t" 
-                 style={{height: `${h}%`}}></div>
+            <div key={i} className="flex-1 bg-green-500/30 rounded-t" style={{height: `${h}%`}}></div>
           ))}
         </div>
 
         <div className="flex justify-between text-sm">
           <div>
             <p className="text-gray-400">Доступно</p>
-            <p className="font-medium">$37,750</p>
+            <p className="font-medium">${portfolio.available.toLocaleString()}</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400">P&L</p>
-            <p className="text-green-500 font-medium">+$357 (+0.67%)</p>
+            <p className="text-green-500 font-medium">+${portfolio.pnl} (+{portfolio.pnlPercent}%)</p>
           </div>
         </div>
       </div>
@@ -59,30 +59,27 @@ export default function HomePage() {
       {/* Signals */}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-lg font-bold">🎯 AI Сигналы</h2>
-        <span className="text-sm text-gray-400">2 активных</span>
+        <span className="text-sm text-gray-400">{aiSignals.length} активных</span>
       </div>
 
-      {[
-        { pair: 'BTC/USDT', conf: 78, profit: '+$104', percent: '+0.74%' },
-        { pair: 'ETH/USDT', conf: 76, profit: '+$168', percent: '+1.99%' },
-      ].map((s, i) => (
+      {aiSignals.map((s, i) => (
         <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 mb-3 border border-gray-800">
           <div className="flex justify-between items-start mb-3">
             <div>
               <p className="font-bold text-lg">{s.pair}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs bg-[#00E5FF]/10 text-[#00E5FF] px-2 py-1 rounded">AI</span>
-                <span className="text-sm text-gray-400">Уверенность: {s.conf}%</span>
+                <span className="text-sm text-gray-400">Уверенность: {s.confidence}%</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-green-500 font-bold text-lg">{s.profit}</p>
-              <p className="text-green-500 text-sm">{s.percent}</p>
+              <p className="text-green-500 font-bold text-lg">+${s.profit}</p>
+              <p className="text-green-500 text-sm">+{s.profitPercent}%</p>
             </div>
           </div>
           
           <div className="h-1 bg-gray-800 rounded-full mb-3 overflow-hidden">
-            <div className="h-full bg-green-500" style={{width: `${s.conf}%`}}></div>
+            <div className="h-full bg-green-500" style={{width: `${s.confidence}%`}}></div>
           </div>
 
           <button className="w-full bg-[#00E5FF] hover:bg-[#00D5EF] text-black py-3 rounded-lg font-medium">
@@ -95,57 +92,56 @@ export default function HomePage() {
         Смотреть все сигналы →
       </button>
 
-      {/* Active Positions */}
+      {/* Positions */}
       <div className="mt-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-bold">📊 Активные позиции</h2>
-          <span className="text-sm text-gray-400">4 открыто</span>
+          <span className="text-sm text-gray-400">{positions.ai.length + positions.manual.length} открыто</span>
         </div>
 
         <p className="text-sm text-[#00E5FF] mb-2 flex items-center gap-2">
           <span className="w-1 h-4 bg-[#00E5FF] rounded"></span>
-          AI · 2 позиции
+          AI · {positions.ai.length} позиции
         </p>
 
-        {[
-          { pair: 'BTC/USDT', entry: '$92,500', tp: '$98,000', profit: '+$80', percent: '+0.57%', time: '2h' },
-          { pair: 'ETH/USDT', entry: '$3,280', tp: '$3,600', profit: '+$153', percent: '+1.82%', time: '5h' }
-        ].map((p, i) => (
+        {positions.ai.map((p, i) => (
           <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800">
             <div className="flex justify-between items-center mb-2">
               <div>
                 <p className="font-bold">{p.pair}</p>
-                <p className="text-xs text-gray-400">LONG · {p.time}</p>
+                <p className="text-xs text-gray-400">{p.type} · {p.time}</p>
               </div>
               <div className="text-right">
-                <p className="text-green-500 font-bold">{p.profit}</p>
-                <p className="text-green-500 text-xs">{p.percent}</p>
+                <p className="text-green-500 font-bold">+${p.profit}</p>
+                <p className="text-green-500 text-xs">+{p.profitPercent}%</p>
               </div>
             </div>
             <div className="flex justify-between text-xs text-gray-400">
-              <span>Entry: {p.entry}</span>
-              <span>TP: {p.tp}</span>
+              <span>Entry: ${p.entry}</span>
+              <span>TP: ${p.tp}</span>
             </div>
           </div>
         ))}
 
         <p className="text-sm text-orange-400 mb-2 mt-4 flex items-center gap-2">
           <span className="w-1 h-4 bg-orange-400 rounded"></span>
-          Manual · 2 позиции
+          Manual · {positions.manual.length} позиции
         </p>
 
-        <div className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-bold">SOL/USDT</p>
-              <p className="text-xs text-gray-400">LONG · 1h</p>
-            </div>
-            <div className="text-right">
-              <p className="text-red-500 font-bold">-$60</p>
-              <p className="text-red-500 text-xs">-2.15%</p>
+        {positions.manual.map((p, i) => (
+          <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-bold">{p.pair}</p>
+                <p className="text-xs text-gray-400">{p.type} · {p.time}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-red-500 font-bold">${p.profit}</p>
+                <p className="text-red-500 text-xs">{p.profitPercent}%</p>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   )

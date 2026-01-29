@@ -1,22 +1,25 @@
 import { useState } from 'react'
 import { ChevronDown, TrendingUp } from 'lucide-react'
+import { portfolio, coins, aiSignals } from '../data/mockData'
 
 export default function TradePage() {
   const [amount, setAmount] = useState('')
   const [useAI, setUseAI] = useState(true)
 
-  const balance = 37750.45
-  const percent = (amount / balance) * 100 || 0
+  const btc = coins[0]
+  const aiSignal = aiSignals[0]
+
+  const percent = (amount / portfolio.available) * 100 || 0
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-4">⚡ Торговля</h1>
 
-      {/* Pair Selector */}
+      {/* Pair */}
       <button className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg p-4 mb-4 flex justify-between items-center">
         <div>
-          <p className="font-bold text-lg">BTC/USDT</p>
-          <p className="text-sm text-gray-400">$95,180.00</p>
+          <p className="font-bold text-lg">{btc.symbol}/USDT</p>
+          <p className="text-sm text-gray-400">${btc.price.toLocaleString()}</p>
         </div>
         <ChevronDown size={20} className="text-gray-400" />
       </button>
@@ -26,13 +29,13 @@ export default function TradePage() {
         <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={16} className="text-[#00E5FF]" />
-            <p className="text-sm font-medium">AI Рекомендация: BUY</p>
-            <span className="ml-auto text-xs text-[#00E5FF]">Уверенность: 78%</span>
+            <p className="text-sm font-medium">AI Рекомендация: {aiSignal.direction}</p>
+            <span className="ml-auto text-xs text-[#00E5FF]">Уверенность: {aiSignal.confidence}%</span>
           </div>
           <div className="flex items-center justify-between text-xs text-gray-300">
-            <span>Entry: $95,200</span>
-            <span>TP: $98,450 (+3.4%)</span>
-            <span>SL: $93,100 (-2.2%)</span>
+            <span>Entry: ${aiSignal.entry}</span>
+            <span>TP: ${aiSignal.tp}</span>
+            <span>SL: ${aiSignal.sl}</span>
           </div>
         </div>
       )}
@@ -48,11 +51,11 @@ export default function TradePage() {
         </label>
       </div>
 
-      {/* Amount + Slider */}
+      {/* Amount */}
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-400 mb-2">
           <span>Сумма (USDT)</span>
-          <span>Доступно: ${balance.toLocaleString()}</span>
+          <span>Доступно: ${portfolio.available.toLocaleString()}</span>
         </div>
 
         <input 
@@ -68,7 +71,7 @@ export default function TradePage() {
           min="0"
           max="100"
           value={percent}
-          onChange={(e) => setAmount((balance * e.target.value / 100).toFixed(2))}
+          onChange={(e) => setAmount((portfolio.available * e.target.value / 100).toFixed(2))}
           className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
           style={{
             background: `linear-gradient(to right, #00E5FF ${percent}%, #374151 ${percent}%)`
@@ -85,7 +88,7 @@ export default function TradePage() {
       {/* Risk Management */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <h3 className="font-bold mb-3">Risk Management</h3>
-        
+
         <div className="mb-3">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-400">Take Profit (%)</span>
@@ -103,7 +106,7 @@ export default function TradePage() {
         </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary (ВОЗВРАЩЕНО) */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <h3 className="font-bold mb-3">Сводка</h3>
         <div className="space-y-2 text-sm">

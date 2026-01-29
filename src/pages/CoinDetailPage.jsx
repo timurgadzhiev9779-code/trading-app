@@ -1,21 +1,25 @@
 import { ArrowLeft, TrendingUp } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { coins } from '../data/mockData'
 
 export default function CoinDetailPage() {
   const { symbol } = useParams()
+  const coin = coins.find(c => c.symbol === symbol) || coins[0]
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Link to="/market"><ArrowLeft size={24} /></Link>
-        <h1 className="text-xl font-bold">{symbol}/USDT</h1>
+        <h1 className="text-xl font-bold">{coin.symbol}/USDT</h1>
       </div>
 
       {/* Price */}
       <div className="mb-4">
-        <p className="text-4xl font-bold mb-1">$95,180.00</p>
-        <p className="text-green-500">+$2,340 (+2.52%)</p>
+        <p className="text-4xl font-bold mb-1">${coin.price.toLocaleString()}</p>
+        <p className={coin.change > 0 ? 'text-green-500' : 'text-red-500'}>
+          {coin.change > 0 ? '+' : ''}{coin.change}%
+        </p>
       </div>
 
       {/* Chart Placeholder */}
@@ -36,15 +40,17 @@ export default function CoinDetailPage() {
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
           <p className="text-xs text-gray-400 mb-1">24ч Изменение</p>
-          <p className="text-green-500 font-bold">+2,340</p>
+          <p className={coin.change > 0 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>
+            {coin.change > 0 ? '+' : ''}{coin.change}%
+          </p>
         </div>
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
           <p className="text-xs text-gray-400 mb-1">Объём</p>
-          <p className="font-bold">$42.50B</p>
+          <p className="font-bold">${coin.volume}</p>
         </div>
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
           <p className="text-xs text-gray-400 mb-1">Капитализация</p>
-          <p className="font-bold">$1.87T</p>
+          <p className="font-bold">${coin.cap}</p>
         </div>
       </div>
 

@@ -1,18 +1,10 @@
-import { Search, TrendingUp } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { coins } from '../data/mockData'
 
 export default function MarketPage() {
-  const coins = [
-    { symbol: 'BTC', name: 'Bitcoin', price: '$95,180', change: '+2.52%', positive: true },
-    { symbol: 'ETH', name: 'Ethereum', price: '$3,425', change: '+2.54%', positive: true },
-    { symbol: 'SOL', name: 'Solana', price: '$195.20', change: '-2.15%', positive: false },
-    { symbol: 'AVAX', name: 'Avalanche', price: '$38.45', change: '+3.22%', positive: true },
-    { symbol: 'LINK', name: 'Chainlink', price: '$14.92', change: '+3.11%', positive: true },
-  ]
-
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
-      {/* Header */}
       <h1 className="text-2xl font-bold mb-4">📊 Рынки</h1>
 
       {/* Search */}
@@ -28,7 +20,14 @@ export default function MarketPage() {
       {/* Filters */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
         {['Все', 'AI Signals', 'Gainers', 'Losers', 'Volume'].map(filter => (
-          <button key={filter} className={`px-4 py-2 rounded-lg whitespace-nowrap ${filter === 'Все' ? 'bg-[#00E5FF] text-black' : 'bg-[#1A1A1A] border border-gray-800'}`}>
+          <button
+            key={filter}
+            className={`px-4 py-2 rounded-lg whitespace-nowrap ${
+              filter === 'Все'
+                ? 'bg-[#00E5FF] text-black'
+                : 'bg-[#1A1A1A] border border-gray-800'
+            }`}
+          >
             {filter}
           </button>
         ))}
@@ -50,9 +49,9 @@ export default function MarketPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold">{coin.price}</p>
-                  <p className={coin.positive ? 'text-green-500 text-sm' : 'text-red-500 text-sm'}>
-                    {coin.change}
+                  <p className="font-bold">${coin.price.toLocaleString()}</p>
+                  <p className={coin.change > 0 ? 'text-green-500 text-sm' : 'text-red-500 text-sm'}>
+                    {coin.change > 0 ? '+' : ''}{coin.change}%
                   </p>
                 </div>
               </div>
