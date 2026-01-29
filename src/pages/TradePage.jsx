@@ -1,19 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, TrendingUp } from 'lucide-react'
-import { portfolio as mockPortfolio, coins, aiSignals } from '../data/mockData'
 import { useTrading } from '../context/TradingContext'
+import { aiSignals } from '../data/mockData'
+import { connectPriceStream } from '../services/websocket'
 
 export default function TradePage() {
   const { portfolio, openPosition } = useTrading()
   const [amount, setAmount] = useState('')
   const [useAI, setUseAI] = useState(true)
-
-  const btc = coins[0]
+  const [btcPrice, setBtcPrice] = useState(0)
   const aiSignal = aiSignals[0]
 
-  const percent = (amount / portfolio.available) * 100 || 0
+  useEffect(() => {
+    const ws = connectPriceStream('BTC', (data) => {
+      setBtcPrice(data.price)
+    })
+    return () => ws.close()
+  }, [])
 
-  // ОБНОВЛЕНО по заданию
   const handleTrade = () => {
     if (!amount || amount <= 0) {
       alert('Введите сумму')
@@ -23,7 +27,7 @@ export default function TradePage() {
     const success = openPosition({
       pair: 'BTC/USDT',
       type: 'LONG',
-      entry: btc.price,
+      entry: btcPrice, // Используем live цену!
       tp: aiSignal.tp,
       sl: aiSignal.sl,
       amount: parseFloat(amount),
@@ -32,7 +36,7 @@ export default function TradePage() {
     
     if (success) {
       setAmount('')
-      alert('✅ Позиция открыта!')
+      alert('✅ Позиция открыта по цене $' + btcPrice.toFixed(2))
     }
   }
 
@@ -43,8 +47,11 @@ export default function TradePage() {
       {/* Pair */}
       <button className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg p-4 mb-4 flex justify-between items-center">
         <div>
-          <p className="font-bold text-lg">{btc.symbol}/USDT</p>
-          <p className="text-sm text-gray-400">${btc.price.toLocaleString()}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-lg">BTC/USDT</p>
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          </div>
+          <p className="text-sm text-gray-400">${btcPrice.toLocaleString()}</p>
         </div>
         <ChevronDown size={20} className="text-gray-400" />
       </button>
@@ -58,7 +65,7 @@ export default function TradePage() {
             <span className="ml-auto text-xs text-[#00E5FF]">Уверенность: {aiSignal.confidence}%</span>
           </div>
           <div className="flex items-center justify-between text-xs text-gray-300">
-            <span>Entry: ${aiSignal.entry}</span>
+            <span>Current: ${btcPrice.toFixed(2)}</span>
             <span>TP: ${aiSignal.tp}</span>
             <span>SL: ${aiSignal.sl}</span>
           </div>
@@ -76,13 +83,12 @@ export default function TradePage() {
         </label>
       </div>
 
-      {/* Amount */}
+      {/* Amount + Slider (без изменений) */}
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-400 mb-2">
           <span>Сумма (USDT)</span>
           <span>Доступно: ${portfolio.available.toLocaleString()}</span>
         </div>
-
         <input 
           type="number"
           value={amount}
@@ -90,44 +96,43 @@ export default function TradePage() {
           placeholder="0.00"
           className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg px-4 py-3 text-xl font-bold mb-3"
         />
-
-        <input 
-          type="range"
-          min="0"
-          max="100"
-          value={percent}
-          onChange={(e) => setAmount((portfolio.available * e.target.value / 100).toFixed(2))}
-          className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
-          style={{
-            background: `linear-gradient(to right, #00E5FF ${percent}%, #374151 ${percent}%)`
-          }}
-        />
-
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>0%</span>
-          <span>{percent.toFixed(0)}%</span>
-          <span>100%</span>
+        
+        <div className="relative">
+          <input 
+            type="range"
+            min="0"
+            max="100"
+            value={(amount / portfolio.available) * 100 || 0}
+            onChange={(e) => setAmount((portfolio.available * e.target.value / 100).toFixed(2))}
+            className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, #00E5FF ${(amount / portfolio.available) * 100}%, #374151 ${(amount / portfolio.available) * 100}%)`
+            }}
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <span>0%</span>
+            <span>{((amount / portfolio.available) * 100 || 0).toFixed(0)}%</span>
+            <span>100%</span>
+          </div>
         </div>
       </div>
 
       {/* Risk Management */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <h3 className="font-bold mb-3">Risk Management</h3>
-
+        
         <div className="mb-3">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-400">Take Profit (%)</span>
-            <span className="text-green-500">+3.4%</span>
+            <span className="text-gray-400">Take Profit</span>
+            <span className="text-green-500">${aiSignal.tp}</span>
           </div>
-          <input type="number" defaultValue="3.4" className="w-full bg-[#0A0A0A] border border-gray-800 rounded px-3 py-2 text-sm" />
         </div>
 
         <div>
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-400">Stop Loss (%)</span>
-            <span className="text-red-500">-2.2%</span>
+            <span className="text-gray-400">Stop Loss</span>
+            <span className="text-red-500">${aiSignal.sl}</span>
           </div>
-          <input type="number" defaultValue="2.2" className="w-full bg-[#0A0A0A] border border-gray-800 rounded px-3 py-2 text-sm" />
         </div>
       </div>
 
@@ -136,20 +141,12 @@ export default function TradePage() {
         <h3 className="font-bold mb-3">Сводка</h3>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
+            <span className="text-gray-400">Цена входа:</span>
+            <span>${btcPrice.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-gray-400">Вы купите:</span>
-            <span>~0.0195 BTC</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Потенциальная прибыль:</span>
-            <span className="text-green-500">+$42.50</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Макс. убыток:</span>
-            <span className="text-red-500">-$27.50</span>
-          </div>
-          <div className="flex justify-between font-bold">
-            <span>Risk/Reward:</span>
-            <span className="text-[#00E5FF]">1:1.5</span>
+            <span>~{(amount / btcPrice).toFixed(6)} BTC</span>
           </div>
         </div>
       </div>

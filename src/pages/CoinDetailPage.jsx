@@ -1,24 +1,34 @@
 import { ArrowLeft, TrendingUp } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { coins } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { connectPriceStream } from '../services/websocket'
 
 export default function CoinDetailPage() {
   const { symbol } = useParams()
-  const coin = coins.find(c => c.symbol === symbol) || coins[0]
+  const [price, setPrice] = useState(0)
+  const [change, setChange] = useState(0)
+
+  useEffect(() => {
+    const ws = connectPriceStream(symbol, (data) => {
+      setPrice(data.price)
+      setChange(data.change)
+    })
+
+    return () => ws.close()
+  }, [symbol])
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Link to="/market"><ArrowLeft size={24} /></Link>
-        <h1 className="text-xl font-bold">{coin.symbol}/USDT</h1>
+        <h1 className="text-xl font-bold">{symbol}/USDT</h1>
+        <span className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
       </div>
 
-      {/* Price */}
       <div className="mb-4">
-        <p className="text-4xl font-bold mb-1">${coin.price.toLocaleString()}</p>
-        <p className={coin.change > 0 ? 'text-green-500' : 'text-red-500'}>
-          {coin.change > 0 ? '+' : ''}{coin.change}%
+        <p className="text-4xl font-bold mb-1">${price.toLocaleString()}</p>
+        <p className={change > 0 ? 'text-green-500' : 'text-red-500'}>
+          {change > 0 ? '+' : ''}{change.toFixed(2)}%
         </p>
       </div>
 
@@ -27,30 +37,21 @@ export default function CoinDetailPage() {
         <p className="text-gray-400">График (скоро)</p>
       </div>
 
-      {/* Timeframes */}
-      <div className="flex gap-2 mb-4">
-        {['15m', '1h', '4h', '1D', '1W', '1M'].map(tf => (
-          <button key={tf} className={`px-3 py-1 rounded ${tf === '1D' ? 'bg-gray-700' : 'bg-[#1A1A1A]'} text-sm`}>
-            {tf}
-          </button>
-        ))}
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
           <p className="text-xs text-gray-400 mb-1">24ч Изменение</p>
-          <p className={coin.change > 0 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>
-            {coin.change > 0 ? '+' : ''}{coin.change}%
+          <p className={change > 0 ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>
+            {change > 0 ? '+' : ''}{change.toFixed(2)}%
           </p>
         </div>
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
-          <p className="text-xs text-gray-400 mb-1">Объём</p>
-          <p className="font-bold">${coin.volume}</p>
+          <p className="text-xs text-gray-400 mb-1">Цена</p>
+          <p className="font-bold text-sm">${price.toFixed(2)}</p>
         </div>
         <div className="bg-[#1A1A1A] rounded-lg p-3 border border-gray-800">
-          <p className="text-xs text-gray-400 mb-1">Капитализация</p>
-          <p className="font-bold">${coin.cap}</p>
+          <p className="text-xs text-gray-400 mb-1">Live</p>
+          <p className="text-green-500 font-bold">●</p>
         </div>
       </div>
 
@@ -62,33 +63,14 @@ export default function CoinDetailPage() {
           <span className="ml-auto text-sm">Уверенность: <span className="text-[#00E5FF] font-bold">78%</span></span>
         </div>
         
-        <div className="space-y-2 text-sm mb-4">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Trend</span>
-            <span className="text-green-500 font-medium">BULLISH</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">RSI</span>
-            <span className="text-gray-300">62 (NEUTRAL)</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">MACD</span>
-            <span className="text-green-500">BULLISH</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Support/Resistance</span>
-            <span className="text-gray-300">$92,500 / $98,000</span>
-          </div>
-        </div>
-
         <p className="text-gray-400 text-sm mb-4">
-          Strong uptrend on daily timeframe with bullish momentum. Consider entries on pullbacks to $93K-94K zone.
+          Анализ на основе текущей цены ${price.toFixed(2)}
         </p>
 
         <div className="flex gap-2">
-          <button className="flex-1 bg-green-500 text-white py-3 rounded-lg font-medium">
+          <Link to="/trade" className="flex-1 bg-green-500 text-white py-3 rounded-lg font-medium text-center">
             Купить
-          </button>
+          </Link>
           <button className="flex-1 bg-gray-800 text-white py-3 rounded-lg font-medium">
             Добавить в мониторинг
           </button>

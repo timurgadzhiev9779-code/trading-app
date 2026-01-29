@@ -1,8 +1,43 @@
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { coins } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { getAllPrices } from '../services/binanceAPI'
 
 export default function MarketPage() {
+  const [coins, setCoins] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const data = await getAllPrices()
+        const formatted = data.map((coin, i) => ({
+          symbol: ['BTC', 'ETH', 'SOL', 'AVAX', 'LINK'][i],
+          name: ['Bitcoin', 'Ethereum', 'Solana', 'Avalanche', 'Chainlink'][i],
+          price: coin.price,
+          change: coin.change
+        }))
+        setCoins(formatted)
+        setLoading(false)
+      } catch (err) {
+        console.error(err)
+        setLoading(false)
+      }
+    }
+
+    fetchPrices()
+    const interval = setInterval(fetchPrices, 10000) // Обновление каждые 10 сек
+    return () => clearInterval(interval)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="text-white p-4 flex items-center justify-center h-screen">
+        <p className="text-gray-400">Загрузка цен...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-4">📊 Рынки</h1>
@@ -17,23 +52,7 @@ export default function MarketPage() {
         />
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {['Все', 'AI Signals', 'Gainers', 'Losers', 'Volume'].map(filter => (
-          <button
-            key={filter}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap ${
-              filter === 'Все'
-                ? 'bg-[#00E5FF] text-black'
-                : 'bg-[#1A1A1A] border border-gray-800'
-            }`}
-          >
-            {filter}
-          </button>
-        ))}
-      </div>
-
-      {/* Coins List */}
+      {/* Coins */}
       <div className="space-y-2">
         {coins.map((coin, i) => (
           <Link key={i} to={`/market/${coin.symbol}`} className="block">
@@ -51,7 +70,7 @@ export default function MarketPage() {
                 <div className="text-right">
                   <p className="font-bold">${coin.price.toLocaleString()}</p>
                   <p className={coin.change > 0 ? 'text-green-500 text-sm' : 'text-red-500 text-sm'}>
-                    {coin.change > 0 ? '+' : ''}{coin.change}%
+                    {coin.change > 0 ? '+' : ''}{coin.change.toFixed(2)}%
                   </p>
                 </div>
               </div>
