@@ -8,6 +8,7 @@ import MarketPage from './pages/MarketPage'
 import CoinDetailPage from './pages/CoinDetailPage'
 import TradePage from './pages/TradePage'
 import HistoryPage from './pages/HistoryPage'   // ✅ добавлено
+import SignalsPage from './pages/SignalsPage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="market/:symbol" element={<CoinDetailPage />} />
         <Route path="trade" element={<TradePage />} />
         <Route path="history" element={<HistoryPage />} />   {/* ✅ добавлено */}
+        <Route path="signals" element={<SignalsPage />} />
       </Route>
     </Routes>
   )

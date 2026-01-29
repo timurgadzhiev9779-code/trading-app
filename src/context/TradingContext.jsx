@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { portfolio as initialPortfolio, positions as initialPositions } from '../data/mockData'
+import { AITrader } from '../services/aiTrading'
 
 const TradingContext = createContext()
 
@@ -7,11 +8,12 @@ export function TradingProvider({ children }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [positions, setPositions] = useState(initialPositions)
   const [aiEnabled, setAiEnabled] = useState(true)
-  const [tradeHistory, setTradeHistory] = useState([]) // ✅ добавлено
+  const [tradeHistory, setTradeHistory] = useState([])
+  const [aiTrader, setAiTrader] = useState(null)
+  const [aiSignals, setAiSignals] = useState([])
 
   // Открыть позицию
   const openPosition = (trade) => {
-    // Валидация
     if (trade.amount > portfolio.available) {
       alert('Недостаточно средств!')
       return false
@@ -50,7 +52,33 @@ export function TradingProvider({ children }) {
     return true
   }
 
-  // Закрыть позицию (ОБНОВЛЕНО)
+  // AI Trader init + сигналы + АВТО-ОТКРЫТИЕ СДЕЛОК
+  useEffect(() => {
+    const trader = new AITrader(
+      (signal) => {
+        setAiSignals(prev => [signal, ...prev].slice(0, 5))
+      },
+      (signal) => {
+        // Проверка: достаточно баланса + AI включён
+        if (aiEnabled && portfolio.available > 100) {
+          openPosition({
+            pair: signal.pair,
+            type: signal.direction,
+            entry: signal.entry,
+            tp: signal.tp,
+            sl: signal.sl,
+            amount: Math.min(portfolio.available * 0.02, 1000),
+            isAI: true
+          })
+          console.log('✅ AI открыл позицию:', signal.pair)
+        }
+      }
+    )
+
+    setAiTrader(trader)
+  }, [])
+
+  // Закрыть позицию
   const closePosition = (pair, isAI) => {
     let closedPosition
 
@@ -68,7 +96,6 @@ export function TradingProvider({ children }) {
       }))
     }
 
-    // Добавить в историю + вернуть деньги
     if (closedPosition) {
       setTradeHistory(prev => [{
         ...closedPosition,
@@ -85,9 +112,22 @@ export function TradingProvider({ children }) {
     }
   }
 
-  // Переключить AI
+  // Toggle AI
   const toggleAI = () => {
-    setAiEnabled(prev => !prev)
+    setAiEnabled(prev => {
+      const newState = !prev
+
+      if (newState && aiTrader) {
+        aiTrader.start([
+          { symbol: 'BTC/USDT', price: 95000 },
+          { symbol: 'ETH/USDT', price: 3400 }
+        ])
+      } else if (aiTrader) {
+        aiTrader.stop()
+      }
+
+      return newState
+    })
   }
 
   return (
@@ -95,7 +135,9 @@ export function TradingProvider({ children }) {
       portfolio,
       positions,
       aiEnabled,
-      tradeHistory,     // ✅ добавлено
+      tradeHistory,
+      aiTrader,
+      aiSignals,
       openPosition,
       closePosition,
       toggleAI
