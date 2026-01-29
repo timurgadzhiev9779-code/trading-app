@@ -7,11 +7,24 @@ export function TradingProvider({ children }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [positions, setPositions] = useState(initialPositions)
   const [aiEnabled, setAiEnabled] = useState(true)
+  const [tradeHistory, setTradeHistory] = useState([]) // ✅ добавлено
 
   // Открыть позицию
   const openPosition = (trade) => {
+    // Валидация
+    if (trade.amount > portfolio.available) {
+      alert('Недостаточно средств!')
+      return false
+    }
+
+    if (trade.amount < 10) {
+      alert('Минимум $10')
+      return false
+    }
+
     const newPosition = {
       ...trade,
+      openTime: Date.now(),
       profit: 0,
       profitPercent: 0,
       time: 'Сейчас'
@@ -29,24 +42,45 @@ export function TradingProvider({ children }) {
       }))
     }
 
-    // Уменьшить доступный баланс
     setPortfolio(prev => ({
       ...prev,
       available: prev.available - trade.amount
     }))
+
+    return true
   }
 
-  // Закрыть позицию
+  // Закрыть позицию (ОБНОВЛЕНО)
   const closePosition = (pair, isAI) => {
+    let closedPosition
+
     if (isAI) {
+      closedPosition = positions.ai.find(p => p.pair === pair)
       setPositions(prev => ({
         ...prev,
         ai: prev.ai.filter(p => p.pair !== pair)
       }))
     } else {
+      closedPosition = positions.manual.find(p => p.pair === pair)
       setPositions(prev => ({
         ...prev,
         manual: prev.manual.filter(p => p.pair !== pair)
+      }))
+    }
+
+    // Добавить в историю + вернуть деньги
+    if (closedPosition) {
+      setTradeHistory(prev => [{
+        ...closedPosition,
+        closeTime: Date.now(),
+        status: 'closed'
+      }, ...prev])
+
+      setPortfolio(prev => ({
+        ...prev,
+        available: prev.available + closedPosition.amount + closedPosition.profit,
+        balance: prev.balance + closedPosition.profit,
+        pnl: prev.pnl + closedPosition.profit
       }))
     }
   }
@@ -61,6 +95,7 @@ export function TradingProvider({ children }) {
       portfolio,
       positions,
       aiEnabled,
+      tradeHistory,     // ✅ добавлено
       openPosition,
       closePosition,
       toggleAI

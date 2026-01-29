@@ -13,10 +13,14 @@ export default function TradePage() {
 
   const percent = (amount / portfolio.available) * 100 || 0
 
+  // ОБНОВЛЕНО по заданию
   const handleTrade = () => {
-    if (!amount || amount <= 0) return
+    if (!amount || amount <= 0) {
+      alert('Введите сумму')
+      return
+    }
     
-    openPosition({
+    const success = openPosition({
       pair: 'BTC/USDT',
       type: 'LONG',
       entry: btc.price,
@@ -26,8 +30,10 @@ export default function TradePage() {
       isAI: useAI
     })
     
-    setAmount('')
-    alert('Позиция открыта!')
+    if (success) {
+      setAmount('')
+      alert('✅ Позиция открыта!')
+    }
   }
 
   return (

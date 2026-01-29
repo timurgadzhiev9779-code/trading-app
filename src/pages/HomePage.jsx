@@ -1,6 +1,7 @@
 import { Menu, Mail, TrendingUp, Pause } from 'lucide-react'
 import { aiSignals } from '../data/mockData'
 import { useTrading } from '../context/TradingContext'
+import { Link } from 'react-router-dom'
 
 export default function HomePage() {
   const { portfolio, positions, aiEnabled, toggleAI, closePosition } = useTrading()
@@ -104,6 +105,11 @@ export default function HomePage() {
           </button>
         </div>
       ))}
+
+      {/* ✅ КНОПКА ИСТОРИИ (ШАГ 38) */}
+      <button className="w-full py-3 text-[#00E5FF] text-sm font-medium">
+        <Link to="/history">История сделок →</Link>
+      </button>
 
       {/* Positions */}
       <div className="mt-6">
