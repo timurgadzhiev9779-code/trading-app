@@ -1,6 +1,7 @@
 import { Menu, Mail, TrendingUp, Pause } from 'lucide-react'
 import { useTrading } from '../context/TradingContext'
 import { Link } from 'react-router-dom'
+import { useLiveProfit } from '../hooks/useLiveProfit'
 
 export default function HomePage() {
   const {
@@ -11,6 +12,9 @@ export default function HomePage() {
     closePosition,
     aiSignals
   } = useTrading()
+
+  const aiPositionsLive = useLiveProfit(positions.ai)
+  const manualPositionsLive = useLiveProfit(positions.manual)
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
@@ -143,7 +147,6 @@ export default function HomePage() {
         ))
       )}
 
-      {/* СМОТРЕТЬ ВСЕ СИГНАЛЫ */}
       <Link
         to="/signals"
         className="w-full py-3 text-[#00E5FF] text-sm font-medium block text-center"
@@ -151,7 +154,6 @@ export default function HomePage() {
         Смотреть все сигналы →
       </Link>
 
-      {/* History */}
       <button className="w-full py-3 text-[#00E5FF] text-sm font-medium">
         <Link to="/history">История сделок →</Link>
       </button>
@@ -161,16 +163,16 @@ export default function HomePage() {
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-bold">📊 Активные позиции</h2>
           <span className="text-sm text-gray-400">
-            {positions.ai.length + positions.manual.length} открыто
+            {aiPositionsLive.length + manualPositionsLive.length} открыто
           </span>
         </div>
 
         <p className="text-sm text-[#00E5FF] mb-2 flex items-center gap-2">
           <span className="w-1 h-4 bg-[#00E5FF] rounded"></span>
-          AI · {positions.ai.length} позиции
+          AI · {aiPositionsLive.length} позиции
         </p>
 
-        {positions.ai.map((p, i) => (
+        {aiPositionsLive.map((p, i) => (
           <div
             key={i}
             className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800"
@@ -183,18 +185,26 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-green-500 font-bold">+${p.profit}</p>
-                <p className="text-green-500 text-xs">
-                  +{p.profitPercent}%
+                <p className={`font-bold ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {p.profit >= 0 ? '+' : ''}${p.profit}
+                </p>
+                <p className={`text-xs ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {p.profit >= 0 ? '+' : ''}{p.profitPercent}%
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-between items-center text-xs text-gray-400">
-              <span>Entry: ${p.entry}</span>
+            <div className="flex justify-between items-center text-xs">
+              <div className="text-gray-400">
+                <span>Entry: ${p.entry}</span>
+                <span className="mx-2">|</span>
+                <span className="text-white">
+                  Now: ${p.currentPrice?.toFixed(2)}
+                </span>
+              </div>
               <button
                 onClick={() => closePosition(p.pair, true)}
-                className="bg-red-500/10 text-red-500 px-3 py-1 rounded text-xs"
+                className="bg-red-500/10 text-red-500 px-3 py-1 rounded"
               >
                 Закрыть
               </button>
@@ -204,15 +214,15 @@ export default function HomePage() {
 
         <p className="text-sm text-orange-400 mb-2 mt-4 flex items-center gap-2">
           <span className="w-1 h-4 bg-orange-400 rounded"></span>
-          Manual · {positions.manual.length} позиции
+          Manual · {manualPositionsLive.length} позиции
         </p>
 
-        {positions.manual.map((p, i) => (
+        {manualPositionsLive.map((p, i) => (
           <div
             key={i}
             className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800"
           >
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-2">
               <div>
                 <p className="font-bold">{p.pair}</p>
                 <p className="text-xs text-gray-400">
@@ -220,17 +230,26 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-red-500 font-bold">${p.profit}</p>
-                <p className="text-red-500 text-xs">
-                  {p.profitPercent}%
+                <p className={`font-bold ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {p.profit >= 0 ? '+' : ''}${p.profit}
+                </p>
+                <p className={`text-xs ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {p.profit >= 0 ? '+' : ''}{p.profitPercent}%
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-between items-center text-xs">
+              <div className="text-gray-400">
+                <span>Entry: ${p.entry}</span>
+                <span className="mx-2">|</span>
+                <span className="text-white">
+                  Now: ${p.currentPrice?.toFixed(2)}
+                </span>
+              </div>
               <button
                 onClick={() => closePosition(p.pair, false)}
-                className="bg-red-500/10 text-red-500 px-3 py-1 rounded text-xs"
+                className="bg-red-500/10 text-red-500 px-3 py-1 rounded"
               >
                 Закрыть
               </button>
