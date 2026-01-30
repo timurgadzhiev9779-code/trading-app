@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { portfolio as initialPortfolio, positions as initialPositions } from '../data/mockData'
 import { AITrader } from '../services/aiTrading'
+import { PositionMonitor } from '../services/positionMonitor'
 
 const TradingContext = createContext()
 
@@ -11,6 +12,14 @@ export function TradingProvider({ children }) {
   const [tradeHistory, setTradeHistory] = useState([])
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
+
+  const [monitor] = useState(
+    () =>
+      new PositionMonitor((pair, profit, reason) => {
+        console.log(`🎯 ${reason}: ${pair} Profit: $${profit.toFixed(2)}`)
+        closePosition(pair, true)
+      })
+  )
 
   // Открыть позицию
   const openPosition = (trade) => {
@@ -49,17 +58,19 @@ export function TradingProvider({ children }) {
       available: prev.available - trade.amount
     }))
 
+    // ▶️ Начать мониторинг позиции
+    monitor.watchPosition(newPosition)
+
     return true
   }
 
-  // AI Trader init + сигналы + АВТО-ОТКРЫТИЕ СДЕЛОК
+  // AI Trader init + сигналы + авто-открытие
   useEffect(() => {
     const trader = new AITrader(
       (signal) => {
         setAiSignals(prev => [signal, ...prev].slice(0, 5))
       },
       (signal) => {
-        // Проверка: достаточно баланса + AI включён
         if (aiEnabled && portfolio.available > 100) {
           openPosition({
             pair: signal.pair,
@@ -97,20 +108,29 @@ export function TradingProvider({ children }) {
     }
 
     if (closedPosition) {
-      setTradeHistory(prev => [{
-        ...closedPosition,
-        closeTime: Date.now(),
-        status: 'closed'
-      }, ...prev])
+      setTradeHistory(prev => [
+        {
+          ...closedPosition,
+          closeTime: Date.now(),
+          status: 'closed'
+        },
+        ...prev
+      ])
 
       setPortfolio(prev => ({
         ...prev,
-        available: prev.available + closedPosition.amount + closedPosition.profit,
+        available:
+          prev.available + closedPosition.amount + closedPosition.profit,
         balance: prev.balance + closedPosition.profit,
         pnl: prev.pnl + closedPosition.profit
       }))
     }
   }
+
+  // Очистка мониторинга
+  useEffect(() => {
+    return () => monitor.stopAll()
+  }, [])
 
   // Toggle AI
   const toggleAI = () => {
@@ -131,17 +151,19 @@ export function TradingProvider({ children }) {
   }
 
   return (
-    <TradingContext.Provider value={{
-      portfolio,
-      positions,
-      aiEnabled,
-      tradeHistory,
-      aiTrader,
-      aiSignals,
-      openPosition,
-      closePosition,
-      toggleAI
-    }}>
+    <TradingContext.Provider
+      value={{
+        portfolio,
+        positions,
+        aiEnabled,
+        aiSignals,
+        openPosition,
+        closePosition,
+        toggleAI,
+        tradeHistory,
+        aiTrader
+      }}
+    >
       {children}
     </TradingContext.Provider>
   )

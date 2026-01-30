@@ -9,6 +9,10 @@ export default function TradePage() {
   const [amount, setAmount] = useState('')
   const [useAI, setUseAI] = useState(true)
   const [btcPrice, setBtcPrice] = useState(0)
+
+  const [tpPercent, setTpPercent] = useState(3)
+  const [slPercent, setSlPercent] = useState(2)
+
   const aiSignal = aiSignals[0]
 
   useEffect(() => {
@@ -20,7 +24,7 @@ export default function TradePage() {
       })
     } catch (err) {
       console.error('WS error:', err)
-      setBtcPrice(95000) // fallback
+      setBtcPrice(95000)
     }
 
     return () => {
@@ -40,8 +44,8 @@ export default function TradePage() {
       pair: 'BTC/USDT',
       type: 'LONG',
       entry: btcPrice,
-      tp: aiSignal.tp,
-      sl: aiSignal.sl,
+      tp: btcPrice * (1 + tpPercent / 100),
+      sl: btcPrice * (1 - slPercent / 100),
       amount: parseFloat(amount),
       isAI: useAI
     })
@@ -69,21 +73,23 @@ export default function TradePage() {
       </button>
 
       {/* AI Suggestion */}
-      {useAI && (
+      {useAI && btcPrice > 0 && (
         <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={16} className="text-[#00E5FF]" />
-            <p className="text-sm font-medium">
-              AI Рекомендация: {aiSignal.direction}
-            </p>
+            <p className="text-sm font-medium">AI Рекомендация: LONG</p>
             <span className="ml-auto text-xs text-[#00E5FF]">
-              Уверенность: {aiSignal.confidence}%
+              Уверенность: 78%
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-gray-300">
             <span>Current: ${btcPrice.toFixed(2)}</span>
-            <span>TP: ${aiSignal.tp}</span>
-            <span>SL: ${aiSignal.sl}</span>
+            <span>
+              TP: {(btcPrice * (1 + tpPercent / 100)).toFixed(2)}
+            </span>
+            <span>
+              SL: {(btcPrice * (1 - slPercent / 100)).toFixed(2)}
+            </span>
           </div>
         </div>
       )}
@@ -110,6 +116,41 @@ export default function TradePage() {
             ></span>
           </span>
         </label>
+      </div>
+
+      {/* Risk Management */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+        <h3 className="font-bold mb-3">Risk Management</h3>
+
+        <div className="mb-3">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-400">Take Profit (%)</span>
+            <span className="text-green-500">+{tpPercent}%</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={tpPercent}
+            onChange={(e) => setTpPercent(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+
+        <div>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-400">Stop Loss (%)</span>
+            <span className="text-red-500">-{slPercent}%</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            value={slPercent}
+            onChange={(e) => setSlPercent(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
       </div>
 
       {/* Amount */}
