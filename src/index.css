@@ -27,3 +27,19 @@ input[type="range"]::-moz-range-thumb {
   border: none;
   box-shadow: 0 0 0 4px rgba(0, 229, 255, 0.2);
 }
+
+/* ===== Toast Animation ===== */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import { portfolio as initialPortfolio, positions as initialPositions } from '../data/mockData'
 import { AITrader } from '../services/aiTrading'
 import { PositionMonitor } from '../services/positionMonitor'
+import Toast from '../components/Toast'
 
 const TradingContext = createContext()
 
@@ -12,12 +13,28 @@ export function TradingProvider({ children }) {
   const [tradeHistory, setTradeHistory] = useState([])
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
+  const [toast, setToast] = useState(null)
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type })
+  }
 
   const [monitor] = useState(
     () =>
       new PositionMonitor((pair, profit, reason) => {
-        console.log(`🎯 ${reason}: ${pair} Profit: $${profit.toFixed(2)}`)
         closePosition(pair, true)
+
+        if (reason === 'TP HIT') {
+          showToast(
+            `🎯 Take Profit достигнут! ${pair} +$${profit.toFixed(2)}`,
+            'success'
+          )
+        } else {
+          showToast(
+            `🛡️ Stop Loss сработал. ${pair} ${profit.toFixed(2)}`,
+            'error'
+          )
+        }
       })
   )
 
@@ -58,8 +75,9 @@ export function TradingProvider({ children }) {
       available: prev.available - trade.amount
     }))
 
-    // ▶️ Начать мониторинг позиции
     monitor.watchPosition(newPosition)
+
+    showToast(`✅ Позиция открыта: ${trade.pair}`, 'success')
 
     return true
   }
@@ -81,7 +99,6 @@ export function TradingProvider({ children }) {
             amount: Math.min(portfolio.available * 0.02, 1000),
             isAI: true
           })
-          console.log('✅ AI открыл позицию:', signal.pair)
         }
       }
     )
@@ -165,6 +182,13 @@ export function TradingProvider({ children }) {
       }}
     >
       {children}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </TradingContext.Provider>
   )
 }
