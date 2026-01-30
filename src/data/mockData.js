@@ -1,9 +1,9 @@
 export const portfolio = {
-    balance: 53247.82,
-    available: 37750.45,
-    pnl: 357.06,
-    pnlPercent: 0.67
-  }
+  balance: 10000,
+  available: 10000,
+  pnl: 0,
+  pnlPercent: 0
+}
   
   export const coins = [
     { symbol: 'BTC', name: 'Bitcoin', price: 95180, change: 2.52, volume: '42.50B', cap: '1.87T' },

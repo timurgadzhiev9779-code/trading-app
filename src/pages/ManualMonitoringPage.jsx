@@ -1,10 +1,12 @@
 import { ArrowLeft, Plus, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
+import { useTrading } from '../context/TradingContext'
 import AddPairModal from '../components/AddPairModal'
 
 export default function AIMonitoringPage() {
   const [showModal, setShowModal] = useState(false)
+  const { manualMonitor } = useTrading()
 
   const [coins, setCoins] = useState([
     { symbol: 'BTC/USDT', timeframe: '4h', enabled: true },
@@ -22,10 +24,24 @@ export default function AIMonitoringPage() {
         <h1 className="text-xl font-bold">Ручной Мониторинг</h1>
       </div>
 
+      {/* ▶️ START BUTTON */}
+      <button
+        onClick={() => {
+          const enabled = coins.filter(c => c.enabled)
+          manualMonitor.start(
+            enabled.map(c => ({ symbol: c.symbol, price: 95000 }))
+          )
+          alert('✅ Мониторинг запущен!')
+        }}
+        className="w-full bg-green-500 text-white py-3 rounded-lg font-medium mb-4"
+      >
+        Запустить мониторинг
+      </button>
+
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-        <input 
+        <input
           type="text"
           placeholder="Поиск пары..."
           className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400"
@@ -33,7 +49,7 @@ export default function AIMonitoringPage() {
       </div>
 
       {/* Add Button */}
-      <button 
+      <button
         onClick={() => setShowModal(true)}
         className="w-full bg-[#00E5FF] text-black py-3 rounded-lg font-medium mb-4 flex items-center justify-center gap-2"
       >
@@ -48,18 +64,37 @@ export default function AIMonitoringPage() {
             <div className="flex justify-between items-center mb-3">
               <div>
                 <p className="font-bold">{coin.symbol}</p>
-                <p className="text-sm text-gray-400">Timeframe: {coin.timeframe}</p>
+                <p className="text-sm text-gray-400">
+                  Timeframe: {coin.timeframe}
+                </p>
               </div>
               <label className="relative inline-block w-12 h-6">
-                <input type="checkbox" checked={coin.enabled} className="sr-only" readOnly />
-                <span className={`absolute inset-0 rounded-full transition ${coin.enabled ? 'bg-green-500' : 'bg-gray-600'}`}>
-                  <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition ${coin.enabled ? 'translate-x-6' : ''}`}></span>
+                <input
+                  type="checkbox"
+                  checked={coin.enabled}
+                  className="sr-only"
+                  readOnly
+                />
+                <span
+                  className={`absolute inset-0 rounded-full transition ${
+                    coin.enabled ? 'bg-green-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition ${
+                      coin.enabled ? 'translate-x-6' : ''
+                    }`}
+                  ></span>
                 </span>
               </label>
             </div>
             <div className="flex gap-2">
-              <button className="flex-1 bg-gray-800 py-2 rounded text-sm">Изменить</button>
-              <button className="flex-1 bg-red-500/10 text-red-500 py-2 rounded text-sm">Удалить</button>
+              <button className="flex-1 bg-gray-800 py-2 rounded text-sm">
+                Изменить
+              </button>
+              <button className="flex-1 bg-red-500/10 text-red-500 py-2 rounded text-sm">
+                Удалить
+              </button>
             </div>
           </div>
         ))}
@@ -70,13 +105,21 @@ export default function AIMonitoringPage() {
         <h3 className="font-bold mb-3">Общие настройки</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-sm text-gray-400 block mb-2">Мин. уверенность AI</label>
+            <label className="text-sm text-gray-400 block mb-2">
+              Мин. уверенность AI
+            </label>
             <input type="range" min="50" max="95" defaultValue="70" className="w-full" />
             <p className="text-right text-sm mt-1">70%</p>
           </div>
           <div>
-            <label className="text-sm text-gray-400 block mb-2">Макс. открытых позиций</label>
-            <input type="number" defaultValue="5" className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg px-3 py-2" />
+            <label className="text-sm text-gray-400 block mb-2">
+              Макс. открытых позиций
+            </label>
+            <input
+              type="number"
+              defaultValue="5"
+              className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg px-3 py-2"
+            />
           </div>
         </div>
       </div>

@@ -34,38 +34,75 @@ export default function SignalsPage() {
         <div className="space-y-3">
           {aiSignals.map((s, i) => (
             <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-800">
-              <div className="flex justify-between mb-3">
+              <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="font-bold text-lg">{s.pair}</p>
-                  <span className="text-xs bg-[#00E5FF]/10 text-[#00E5FF] px-2 py-1 rounded">
-                    AI {s.confidence}%
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        s.manual
+                          ? 'bg-orange-400/10 text-orange-400'
+                          : 'bg-[#00E5FF]/10 text-[#00E5FF]'
+                      }`}
+                    >
+                      {s.manual ? 'Manual' : 'AI'}
+                    </span>
+                    <span className="text-sm text-gray-400">
+                      Уверенность: {s.confidence}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <p
+                    className={`font-bold text-lg ${
+                      s.direction === 'LONG'
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                    }`}
+                  >
+                    {s.direction}
+                  </p>
+                  <p className="text-gray-400 text-xs">Сейчас</p>
+                </div>
+              </div>
+
+              {/* Индикаторы */}
+              {s.rsi && (
+                <div className="flex gap-2 text-xs mb-3">
+                  <span className="bg-[#0A0A0A] px-2 py-1 rounded text-gray-400">
+                    RSI: <span className="text-white">{s.rsi}</span>
+                  </span>
+                  <span
+                    className={`bg-[#0A0A0A] px-2 py-1 rounded ${
+                      s.macd === 'BULLISH'
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                    }`}
+                  >
+                    MACD: {s.macd}
                   </span>
                 </div>
-                <div className="text-right">
-                  <p className="text-green-500 font-bold">{s.direction}</p>
-                </div>
+              )}
+
+              <div className="h-1 bg-gray-800 rounded-full mb-3 overflow-hidden">
+                <div
+                  className="h-full bg-green-500"
+                  style={{ width: `${s.confidence}%` }}
+                />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs mb-3">
-                <div className="bg-[#0A0A0A] p-2 rounded">
-                  <p className="text-gray-400">Entry</p>
-                  <p className="font-bold">${s.entry.toFixed(2)}</p>
-                </div>
-                <div className="bg-[#0A0A0A] p-2 rounded">
-                  <p className="text-gray-400">TP</p>
-                  <p className="font-bold text-green-500">${s.tp.toFixed(2)}</p>
-                </div>
-                <div className="bg-[#0A0A0A] p-2 rounded">
-                  <p className="text-gray-400">SL</p>
-                  <p className="font-bold text-red-500">${s.sl.toFixed(2)}</p>
-                </div>
+              <div className="flex gap-2 text-xs text-gray-400 mb-3">
+                <span>Entry: ${s.entry.toFixed(2)}</span>
+                <span>TP: ${s.tp.toFixed(2)}</span>
+                <span>SL: ${s.sl.toFixed(2)}</span>
               </div>
 
-              <button 
+              <button
                 onClick={() => handleTrade(s)}
-                className="w-full bg-[#00E5FF] text-black py-2 rounded-lg font-medium"
+                className="w-full bg-[#00E5FF] hover:bg-[#00D5EF] text-black py-3 rounded-lg font-medium"
               >
-                Торговать
+                Торговать →
               </button>
             </div>
           ))}

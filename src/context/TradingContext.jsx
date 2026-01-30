@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { portfolio as initialPortfolio, positions as initialPositions } from '../data/mockData'
-import { AITrader } from '../services/aiTrading'
+import { AITrader, ManualMonitor } from '../services/aiTrading'
 import { PositionMonitor } from '../services/positionMonitor'
 import Toast from '../components/Toast'
 
@@ -9,7 +9,7 @@ const TradingContext = createContext()
 export function TradingProvider({ children }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [positions, setPositions] = useState(initialPositions)
-  const [aiEnabled, setAiEnabled] = useState(true)
+  const [aiEnabled, setAiEnabled] = useState(false)
   const [tradeHistory, setTradeHistory] = useState([])
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
@@ -18,6 +18,14 @@ export function TradingProvider({ children }) {
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
   }
+
+  const [manualMonitor] = useState(
+    () =>
+      new ManualMonitor((signal) => {
+        setAiSignals(prev => [signal, ...prev].slice(0, 10))
+        showToast(`📊 Новый сигнал: ${signal.pair}`, 'info')
+      })
+  )
 
   const [monitor] = useState(
     () =>
@@ -178,7 +186,8 @@ export function TradingProvider({ children }) {
         closePosition,
         toggleAI,
         tradeHistory,
-        aiTrader
+        aiTrader,
+        manualMonitor
       }}
     >
       {children}
