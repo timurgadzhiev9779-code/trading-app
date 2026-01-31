@@ -56,6 +56,9 @@ export class TechnicalAnalyzer {
       period: 14
     })
     const currentADX = adx[adx.length - 1]
+
+    // Fibonacci
+    const fib = this.calculateFibonacci(highs, lows)
     
     const currentPrice = closes[closes.length - 1]
     
@@ -99,7 +102,8 @@ export class TechnicalAnalyzer {
       volume: {
         current: (currentVolume / 1000000).toFixed(2) + 'M',
         signal: currentVolume > avgVolume * 1.5 ? 'HIGH' : currentVolume > avgVolume ? 'ABOVE AVG' : 'LOW'
-      }
+      },
+      fibonacci: fib
     }
   }
   
@@ -127,6 +131,22 @@ export class TechnicalAnalyzer {
   checkAlignment(h1, h4, d1) {
     const bullish = [h1, h4, d1].filter(t => t.trend.signal === 'BULLISH').length
     return bullish >= 2 ? 'ALIGNED' : 'MIXED'
+  }
+
+  calculateFibonacci(highs, lows) {
+    const recentHigh = Math.max(...highs.slice(-50))
+    const recentLow = Math.min(...lows.slice(-50))
+    const diff = recentHigh - recentLow
+    
+    return {
+      high: recentHigh,
+      low: recentLow,
+      fib236: (recentHigh - diff * 0.236).toFixed(2),
+      fib382: (recentHigh - diff * 0.382).toFixed(2),
+      fib500: (recentHigh - diff * 0.500).toFixed(2),
+      fib618: (recentHigh - diff * 0.618).toFixed(2),
+      fib786: (recentHigh - diff * 0.786).toFixed(2)
+    }
   }
   
   getTrendStrength(closes) {

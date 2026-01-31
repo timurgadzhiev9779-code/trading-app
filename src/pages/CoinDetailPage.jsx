@@ -114,6 +114,32 @@ export default function CoinDetailPage() {
         </div>
       </div>
 
+      {/* Fibonacci Levels */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+        <h3 className="font-bold mb-3">Fibonacci Levels</h3>
+        <div className="space-y-2 text-sm">
+          {[
+            { level: 'High', value: analysis.current.fibonacci.high, color: 'text-red-400' },
+            { level: '23.6%', value: analysis.current.fibonacci.fib236, color: 'text-orange-400' },
+            { level: '38.2%', value: analysis.current.fibonacci.fib382, color: 'text-yellow-400' },
+            { level: '50%', value: analysis.current.fibonacci.fib500, color: 'text-blue-400' },
+            { level: '61.8%', value: analysis.current.fibonacci.fib618, color: 'text-green-400' },
+            { level: '78.6%', value: analysis.current.fibonacci.fib786, color: 'text-emerald-400' },
+            { level: 'Low', value: analysis.current.fibonacci.low, color: 'text-cyan-400' }
+          ].map((fib, i) => (
+            <div key={i} className="flex justify-between items-center">
+              <span className="text-gray-400">{fib.level}</span>
+              <div className="flex items-center gap-2">
+                <span className={`font-mono ${fib.color}`}>${fib.value}</span>
+                {price >= parseFloat(fib.value) - 10 && price <= parseFloat(fib.value) + 10 && (
+                  <span className="text-xs bg-[#00E5FF]/20 text-[#00E5FF] px-2 py-0.5 rounded">← NOW</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* AI Analysis */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-[#00E5FF]/30">
         <div className="flex items-center gap-2 mb-3">
