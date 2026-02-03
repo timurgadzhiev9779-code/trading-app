@@ -1,31 +1,62 @@
-import { ArrowLeft, Plus, Search, X } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Play, Pause } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTrading } from '../context/TradingContext'
-import { ALLOWED_COINS } from '../services/binanceAPI'
 
 export default function ManualMonitoringPage() {
   const { manualMonitor } = useTrading()
-  const [coins, setCoins] = useState([
-    { symbol: 'BTC/USDT', timeframe: '4h', enabled: true },
-    { symbol: 'ETH/USDT', timeframe: '1h', enabled: true },
-    { symbol: 'SOL/USDT', timeframe: '4h', enabled: false },
-  ])
-  const [search, setSearch] = useState('')
+  
+  const [isActive, setIsActive] = useState(() => {
+    return localStorage.getItem('manualMonitorActive') === 'true'
+  })
+  
+  const [coins, setCoins] = useState(() => {
+    const saved = localStorage.getItem('manualMonitoring')
+    return saved ? JSON.parse(saved) : [
+      { symbol: 'BTC/USDT', timeframe: '4h', enabled: true, minConfidence: 70 },
+      { symbol: 'ETH/USDT', timeframe: '1h', enabled: true, minConfidence: 70 },
+      { symbol: 'SOL/USDT', timeframe: '4h', enabled: false, minConfidence: 70 },
+      { symbol: 'AVAX/USDT', timeframe: '1h', enabled: false, minConfidence: 70 },
+    ]
+  })
+
   const [showAddModal, setShowAddModal] = useState(false)
-  const [addSearch, setAddSearch] = useState('')
-  const [editIndex, setEditIndex] = useState(null)
+  const [editingIndex, setEditingIndex] = useState(null)
+  const [newCoin, setNewCoin] = useState({ symbol: '', timeframe: '4h' })
 
-  // Фильтр списка
-  const filteredCoins = coins.filter(coin => 
-    coin.symbol.toLowerCase().includes(search.toLowerCase())
-  )
+  useEffect(() => {
+    localStorage.setItem('manualMonitoring', JSON.stringify(coins))
+  }, [coins])
 
-  // Доступные для добавления монеты
-  const availableCoins = ALLOWED_COINS.filter(symbol => 
-    !coins.find(c => c.symbol === `${symbol}/USDT`) &&
-    symbol.toLowerCase().includes(addSearch.toLowerCase())
-  )
+  useEffect(() => {
+    localStorage.setItem('manualMonitorActive', isActive)
+  }, [isActive])
+
+  useEffect(() => {
+    if (isActive && manualMonitor) {
+      const enabled = coins.filter(c => c.enabled)
+      if (enabled.length > 0) {
+        manualMonitor.start(enabled.map(c => ({ symbol: c.symbol, price: 95000 })))
+      }
+    }
+  }, [])
+
+  const enabledCount = coins.filter(c => c.enabled).length
+
+  const toggleMonitoring = () => {
+    if (!isActive) {
+      const enabled = coins.filter(c => c.enabled)
+      if (enabled.length === 0) {
+        alert('Выберите хотя бы одну монету')
+        return
+      }
+      manualMonitor.start(enabled.map(c => ({ symbol: c.symbol, price: 95000 })))
+      setIsActive(true)
+    } else {
+      manualMonitor.stop()
+      setIsActive(false)
+    }
+  }
 
   const toggleCoin = (index) => {
     const updated = [...coins]
@@ -33,18 +64,9 @@ export default function ManualMonitoringPage() {
     setCoins(updated)
   }
 
-  const addCoin = (symbol) => {
-    setCoins([...coins, { 
-      symbol: `${symbol}/USDT`, 
-      timeframe: '1h', 
-      enabled: true 
-    }])
-    setShowAddModal(false)
-    setAddSearch('')
-  }
-
-  const removeCoin = (index) => {
-    const updated = coins.filter((_, i) => i !== index)
+  const updateConfidence = (index, value) => {
+    const updated = [...coins]
+    updated[index].minConfidence = parseInt(value)
     setCoins(updated)
   }
 
@@ -52,100 +74,124 @@ export default function ManualMonitoringPage() {
     const updated = [...coins]
     updated[index].timeframe = timeframe
     setCoins(updated)
-    setEditIndex(null)
+    setEditingIndex(null)
   }
 
-  const startMonitoring = () => {
-    const enabled = coins.filter(c => c.enabled)
-    manualMonitor.start(enabled.map(c => ({ symbol: c.symbol, price: 0 })))
-    alert('✅ Мониторинг запущен!')
+  const removeCoin = (index) => {
+    if (confirm(`Удалить ${coins[index].symbol}?`)) {
+      setCoins(coins.filter((_, i) => i !== index))
+    }
   }
+
+  const addCoin = () => {
+    if (!newCoin.symbol) return
+    setCoins([...coins, {
+      symbol: `${newCoin.symbol}/USDT`,
+      timeframe: newCoin.timeframe,
+      enabled: false,
+      minConfidence: 70
+    }])
+    setShowAddModal(false)
+    setNewCoin({ symbol: '', timeframe: '4h' })
+  }
+
+  const availableCoins = ['ADA', 'XRP', 'DOGE', 'ATOM', 'LTC', 'BCH', 'XLM', 'TRX']
+  const sortedCoins = [...coins].sort((a, b) => {
+    if (a.enabled && !b.enabled) return -1
+    if (!a.enabled && b.enabled) return 1
+    return 0
+  })
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link to="/ai"><ArrowLeft size={24} /></Link>
-        <h1 className="text-xl font-bold">Ручной Мониторинг</h1>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold">Ручной Мониторинг</h1>
+          <p className="text-xs text-gray-400">Только сигналы, торгуете сами</p>
+        </div>
       </div>
 
-      {/* Start Button */}
-      <button
-        onClick={startMonitoring}
-        className="w-full bg-green-500 text-white py-3 rounded-lg font-medium mb-4"
-      >
-        Запустить мониторинг
-      </button>
+      {/* Status + Control */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-orange-400/30">
+        <div className="flex justify-between items-center mb-3">
+          <div>
+            <p className="font-bold">Статус</p>
+            <p className={`text-sm ${isActive ? 'text-green-500' : 'text-gray-400'}`}>
+              {isActive ? '● Активен' : '○ Остановлен'}
+            </p>
+          </div>
+          <button 
+            onClick={toggleMonitoring}
+            className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 ${
+              isActive ? 'bg-red-500/20 text-red-500' : 'bg-green-500 text-white'
+            }`}
+          >
+            {isActive ? <><Pause size={16} /> Остановить</> : <><Play size={16} /> Запустить</>}
+          </button>
+        </div>
+        <div className="text-sm text-gray-400">
+          Активно: <span className="text-orange-400 font-bold">{enabledCount}</span>/{coins.length} монет
+        </div>
+      </div>
 
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-        <input
+        <input 
           type="text"
-          placeholder="Поиск пары..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Поиск монеты..."
           className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400"
         />
       </div>
 
       {/* Add Button */}
-      <button
+      <button 
         onClick={() => setShowAddModal(true)}
-        className="w-full bg-[#00E5FF] text-black py-3 rounded-lg font-medium mb-4 flex items-center justify-center gap-2"
+        className="w-full bg-orange-400 text-black py-3 rounded-lg font-medium mb-4 flex items-center justify-center gap-2"
       >
         <Plus size={20} />
-        Добавить пару
+        Добавить монету
       </button>
 
-      {/* Stats */}
-      <div className="text-sm text-gray-400 mb-3">
-        Активных: {coins.filter(c => c.enabled).length} из {coins.length}
-      </div>
-
-      {/* Monitoring List */}
+      {/* Coins List */}
       <div className="space-y-3">
-        {filteredCoins.map((coin, i) => (
+        {sortedCoins.map((coin, i) => (
           <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-800">
             <div className="flex justify-between items-center mb-3">
               <div>
                 <p className="font-bold">{coin.symbol}</p>
                 <p className="text-sm text-gray-400">Timeframe: {coin.timeframe}</p>
               </div>
-              <label className="relative inline-block w-12 h-6 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={coin.enabled}
-                  onChange={() => toggleCoin(i)}
-                  className="sr-only"
-                />
-                <span className={`absolute inset-0 rounded-full transition ${coin.enabled ? 'bg-green-500' : 'bg-gray-600'}`}>
+              <label className="relative inline-block w-12 h-6">
+                <input type="checkbox" checked={coin.enabled} onChange={() => toggleCoin(i)} className="sr-only" />
+                <span className={`absolute inset-0 rounded-full transition ${coin.enabled ? 'bg-orange-400' : 'bg-gray-600'}`}>
                   <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition ${coin.enabled ? 'translate-x-6' : ''}`}></span>
                 </span>
               </label>
             </div>
-
-            {/* Edit Timeframe */}
-            {editIndex === i ? (
-              <div className="flex gap-2 mb-3">
-                {['15m', '1h', '4h', '1d'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => updateTimeframe(i, tf)}
-                    className={`flex-1 py-2 rounded text-sm ${coin.timeframe === tf ? 'bg-[#00E5FF] text-black' : 'bg-gray-800'}`}
-                  >
-                    {tf}
-                  </button>
-                ))}
+            
+            <div className="mb-2">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-400">Мин. уверенность</span>
+                <span className="text-orange-400">{coin.minConfidence}%</span>
               </div>
-            ) : null}
+              <input 
+                type="range" 
+                min="50" 
+                max="95" 
+                value={coin.minConfidence}
+                onChange={(e) => updateConfidence(i, e.target.value)}
+                className="w-full h-1 bg-gray-700 rounded"
+              />
+            </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-3">
               <button 
-                onClick={() => setEditIndex(editIndex === i ? null : i)}
+                onClick={() => setEditingIndex(i)}
                 className="flex-1 bg-gray-800 py-2 rounded text-sm"
               >
-                {editIndex === i ? 'Закрыть' : 'Изменить'}
+                Изменить
               </button>
               <button 
                 onClick={() => removeCoin(i)}
@@ -154,66 +200,75 @@ export default function ManualMonitoringPage() {
                 Удалить
               </button>
             </div>
+
+            {/* Edit Modal */}
+            {editingIndex === i && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setEditingIndex(null)}>
+                <div className="bg-[#1A1A1A] w-full max-w-sm rounded-2xl p-6 m-4" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-xl font-bold mb-4">{coin.symbol}</h3>
+                  <div className="mb-4">
+                    <label className="text-sm text-gray-400 block mb-2">Timeframe</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {['15m', '1h', '4h', '1D'].map(tf => (
+                        <button 
+                          key={tf}
+                          onClick={() => updateTimeframe(i, tf)}
+                          className={`py-2 rounded-lg ${coin.timeframe === tf ? 'bg-orange-400 text-black' : 'bg-[#0A0A0A] border border-gray-800'}`}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => setEditingIndex(null)} className="w-full bg-gray-800 py-3 rounded-lg">
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Settings */}
-      <div className="mt-6 bg-[#1A1A1A] rounded-xl p-4 border border-gray-800">
-        <h3 className="font-bold mb-3">Общие настройки</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">Мин. уверенность AI</label>
-            <input type="range" min="50" max="95" defaultValue="70" className="w-full" />
-            <p className="text-right text-sm mt-1">70%</p>
-          </div>
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">Макс. открытых позиций</label>
-            <input
-              type="number"
-              defaultValue="5"
-              className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1A1A1A] rounded-xl p-4 w-full max-w-sm max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-lg">Добавить пару</h2>
-              <button onClick={() => setShowAddModal(false)}>
-                <X size={24} className="text-gray-400" />
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
+          <div className="bg-[#1A1A1A] w-full max-w-sm rounded-2xl p-6 m-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4">Добавить монету</h3>
+            <div className="mb-4">
+              <label className="text-sm text-gray-400 block mb-2">Монета</label>
+              <select 
+                value={newCoin.symbol}
+                onChange={(e) => setNewCoin({...newCoin, symbol: e.target.value})}
+                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg px-4 py-3 text-white"
+              >
+                <option value="">Выберите монету</option>
+                {availableCoins.map(c => (
+                  <option key={c} value={c}>{c}/USDT</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="text-sm text-gray-400 block mb-2">Timeframe</label>
+              <div className="grid grid-cols-4 gap-2">
+                {['15m', '1h', '4h', '1D'].map(tf => (
+                  <button 
+                    key={tf}
+                    onClick={() => setNewCoin({...newCoin, timeframe: tf})}
+                    className={`py-2 rounded-lg ${newCoin.timeframe === tf ? 'bg-orange-400 text-black' : 'bg-[#0A0A0A] border border-gray-800'}`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 bg-gray-800 py-3 rounded-lg">
+                Отмена
               </button>
-            </div>
-            
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-              <input 
-                type="text"
-                placeholder="Поиск..."
-                value={addSearch}
-                onChange={(e) => setAddSearch(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400"
-              />
-            </div>
-
-            <div className="overflow-y-auto flex-1 space-y-2">
-              {availableCoins.map((symbol, i) => (
-                <button
-                  key={i}
-                  onClick={() => addCoin(symbol)}
-                  className="w-full bg-[#0A0A0A] hover:bg-[#00E5FF]/10 border border-gray-800 hover:border-[#00E5FF]/30 rounded-lg p-3 text-left transition"
-                >
-                  <span className="font-bold">{symbol}</span>
-                  <span className="text-gray-400">/USDT</span>
-                </button>
-              ))}
-              {availableCoins.length === 0 && (
-                <p className="text-gray-400 text-center py-4">Все монеты добавлены</p>
-              )}
+              <button onClick={addCoin} className="flex-1 bg-orange-400 text-black py-3 rounded-lg font-medium">
+                Добавить
+              </button>
             </div>
           </div>
         </div>

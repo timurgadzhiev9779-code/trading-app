@@ -7,8 +7,11 @@ import ManualMonitoringPage from './pages/ManualMonitoringPage'
 import MarketPage from './pages/MarketPage'
 import CoinDetailPage from './pages/CoinDetailPage'
 import TradePage from './pages/TradePage'
-import HistoryPage from './pages/HistoryPage'   // ✅ добавлено
+import HistoryPage from './pages/HistoryPage'
 import SignalsPage from './pages/SignalsPage'
+import SignalDetailPage from './pages/SignalDetailPage'
+import StatisticsPage from './pages/StatisticsPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -21,8 +24,11 @@ export default function App() {
         <Route path="market" element={<MarketPage />} />
         <Route path="market/:symbol" element={<CoinDetailPage />} />
         <Route path="trade" element={<TradePage />} />
-        <Route path="history" element={<HistoryPage />} />   {/* ✅ добавлено */}
+        <Route path="history" element={<HistoryPage />} />
         <Route path="signals" element={<SignalsPage />} />
+        <Route path="signal-detail" element={<SignalDetailPage />} />
+        <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   )

@@ -1,7 +1,11 @@
-import { Menu, Mail, TrendingUp, Pause } from 'lucide-react'
+import { useState } from 'react'
+import { Menu, Bell, TrendingUp, Pause } from 'lucide-react'
 import { useTrading } from '../context/TradingContext'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLiveProfit } from '../hooks/useLiveProfit'
+import { formatPrice } from '../utils/formatPrice'
+import MenuSidebar from '../components/MenuSidebar'
+import NotificationsPanel from '../components/NotificationsPanel'
 
 export default function HomePage() {
   const {
@@ -10,8 +14,12 @@ export default function HomePage() {
     aiEnabled,
     toggleAI,
     closePosition,
-    aiSignals
+    aiSignals,
+    notifications
   } = useTrading()
+  const navigate = useNavigate()
+  const [showMenu, setShowMenu] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   const aiPositionsLive = useLiveProfit(positions.ai)
   const manualPositionsLive = useLiveProfit(positions.manual)
@@ -20,9 +28,18 @@ export default function HomePage() {
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <Menu size={24} />
-        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-        <Mail size={24} />
+        <button onClick={() => setShowMenu(true)}>
+          <Menu size={24} />
+        </button>
+        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+        <button onClick={() => setShowNotifications(true)} className="relative">
+          <Bell size={24} />
+          {notifications.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
+              {notifications.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Portfolio */}
@@ -91,7 +108,7 @@ export default function HomePage() {
           </p>
         </div>
       ) : (
-        aiSignals.map((s, i) => (
+        aiSignals.slice(0, 3).map((s, i) => (
           <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 mb-3 border border-gray-800">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -118,6 +135,37 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Market Context */}
+            {s.context && (
+              <div className="bg-[#0A0A0A] rounded-lg p-3 mb-3">
+                <p className="text-xs text-gray-400 mb-2">Рыночный контекст:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400">BTC тренд: </span>
+                    <span className={`font-medium ${s.context.btcTrend.trend.includes('BULL') ? 'text-green-500' : 'text-red-500'}`}>
+                      {s.context.btcTrend.trend}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">BTC.D: </span>
+                    <span className="font-medium">{s.context.btcDom.btc}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Fear&Greed: </span>
+                    <span className={`font-medium ${
+                      s.context.fearGreed.value > 50 ? 'text-green-500' : 'text-orange-500'
+                    }`}>
+                      {s.context.fearGreed.value}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Correlation: </span>
+                    <span className="font-medium">{s.context.correlation.strength}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {s.rsi && (
               <div className="flex gap-2 text-xs mb-3">
                 <span className="bg-[#0A0A0A] px-2 py-1 rounded text-gray-400">
@@ -136,12 +184,15 @@ export default function HomePage() {
             </div>
 
             <div className="flex gap-2 text-xs text-gray-400 mb-3">
-              <span>Entry: ${s.entry.toFixed(2)}</span>
-              <span>TP: ${s.tp.toFixed(2)}</span>
-              <span>SL: ${s.sl.toFixed(2)}</span>
+              <span>Entry: {formatPrice(s.entry)}</span>
+              <span>TP: {formatPrice(s.tp)}</span>
+              <span>SL: {formatPrice(s.sl)}</span>
             </div>
 
-            <button className="w-full bg-[#00E5FF] hover:bg-[#00D5EF] text-black py-3 rounded-lg font-medium">
+            <button 
+              onClick={() => navigate('/signal-detail', { state: { signal: s } })}
+              className="w-full bg-[#00E5FF] hover:bg-[#00D5EF] text-black py-3 rounded-lg font-medium"
+            >
               Торговать →
             </button>
           </div>
@@ -156,8 +207,16 @@ export default function HomePage() {
         История сделок →
       </Link>
 
-      {/* Positions — без изменений */}
-      {/* … твой текущий код позиций … */}
+      <Link 
+        to="/statistics"
+        className="w-full bg-[#1A1A1A] border border-gray-800 py-4 rounded-lg font-medium text-center block mt-4"
+      >
+        📊 Посмотреть статистику
+      </Link>
+
+      {/* Sidebars */}
+      {showMenu && <MenuSidebar onClose={() => setShowMenu(false)} />}
+      {showNotifications && <NotificationsPanel notifications={notifications} onClose={() => setShowNotifications(false)} />}
     </div>
   )
 }

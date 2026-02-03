@@ -3,20 +3,72 @@ import { portfolio as initialPortfolio, positions as initialPositions } from '..
 import { AITrader, ManualMonitor } from '../services/aiTrading'
 import { PositionMonitor } from '../services/positionMonitor'
 import Toast from '../components/Toast'
+import STORAGE_KEYS, { saveToStorage, loadFromStorage } from '../utils/storage'
 
 const TradingContext = createContext()
 
 export function TradingProvider({ children }) {
-  const [portfolio, setPortfolio] = useState(initialPortfolio)
-  const [positions, setPositions] = useState(initialPositions)
-  const [aiEnabled, setAiEnabled] = useState(false)
-  const [tradeHistory, setTradeHistory] = useState([])
+  // Загружаем из localStorage или используем default
+  const [portfolio, setPortfolio] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.PORTFOLIO, initialPortfolio)
+  )
+  const [positions, setPositions] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.POSITIONS, initialPositions)
+  )
+  const [tradeHistory, setTradeHistory] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.HISTORY, [])
+  )
+  const [aiEnabled, setAiEnabled] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.AI_ENABLED, false)
+  )
+  const [notifications, setNotifications] = useState(() => 
+    loadFromStorage('notifications', [])
+  )
+  
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
   const [toast, setToast] = useState(null)
 
+  // Сохраняем при каждом изменении
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.PORTFOLIO, portfolio)
+  }, [portfolio])
+  
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.POSITIONS, positions)
+  }, [positions])
+  
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.HISTORY, tradeHistory)
+  }, [tradeHistory])
+  
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.AI_ENABLED, aiEnabled)
+  }, [aiEnabled])
+
+  useEffect(() => {
+    saveToStorage('notifications', notifications)
+  }, [notifications])
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
+  }
+
+  const addNotification = (type, title, message) => {
+    const notif = {
+      id: Date.now(),
+      type, // 'signal', 'trade', 'alert'
+      title,
+      message,
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
+    }
+    
+    setNotifications(prev => [notif, ...prev].slice(0, 50)) // Последние 50
+  }
+
+  const clearNotifications = () => {
+    setNotifications([])
   }
 
   const [manualMonitor] = useState(
@@ -24,6 +76,7 @@ export function TradingProvider({ children }) {
       new ManualMonitor((signal) => {
         setAiSignals(prev => [signal, ...prev].slice(0, 10))
         showToast(`📊 Новый сигнал: ${signal.pair}`, 'info')
+        addNotification('signal', 'Новый сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
       })
   )
 
@@ -37,11 +90,13 @@ export function TradingProvider({ children }) {
             `🎯 Take Profit достигнут! ${pair} +$${profit.toFixed(2)}`,
             'success'
           )
+          addNotification('trade', 'Take Profit достигнут', `${pair}: +$${profit.toFixed(2)}`)
         } else {
           showToast(
             `🛡️ Stop Loss сработал. ${pair} ${profit.toFixed(2)}`,
             'error'
           )
+          addNotification('alert', 'Stop Loss сработал', `${pair}: ${profit.toFixed(2)}`)
         }
       })
   )
@@ -95,6 +150,7 @@ export function TradingProvider({ children }) {
     const trader = new AITrader(
       (signal) => {
         setAiSignals(prev => [signal, ...prev].slice(0, 5))
+        addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
       },
       (signal) => {
         if (aiEnabled && portfolio.available > 100) {
@@ -107,6 +163,7 @@ export function TradingProvider({ children }) {
             amount: Math.min(portfolio.available * 0.02, 1000),
             isAI: true
           })
+          addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
         }
       }
     )
@@ -187,7 +244,10 @@ export function TradingProvider({ children }) {
         toggleAI,
         tradeHistory,
         aiTrader,
-        manualMonitor
+        manualMonitor,
+        notifications,
+        addNotification,
+        clearNotifications
       }}
     >
       {children}

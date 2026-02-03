@@ -1,22 +1,10 @@
 import { useTrading } from '../context/TradingContext'
 import { ArrowLeft } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function SignalsPage() {
-  const { aiSignals, openPosition, portfolio } = useTrading()
-
-  const handleTrade = (signal) => {
-    openPosition({
-      pair: signal.pair,
-      type: signal.direction,
-      entry: signal.entry,
-      tp: signal.tp,
-      sl: signal.sl,
-      amount: Math.min(portfolio.available * 0.05, 500),
-      isAI: false // Ручная торговля по сигналу
-    })
-    alert('✅ Позиция открыта!')
-  }
+  const { aiSignals } = useTrading()
+  const navigate = useNavigate()
 
   return (
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
@@ -38,13 +26,11 @@ export default function SignalsPage() {
                 <div>
                   <p className="font-bold text-lg">{s.pair}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        s.manual
-                          ? 'bg-orange-400/10 text-orange-400'
-                          : 'bg-[#00E5FF]/10 text-[#00E5FF]'
-                      }`}
-                    >
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      s.manual
+                        ? 'bg-orange-400/10 text-orange-400'
+                        : 'bg-[#00E5FF]/10 text-[#00E5FF]'
+                    }`}>
                       {s.manual ? 'Manual' : 'AI'}
                     </span>
                     <span className="text-sm text-gray-400">
@@ -54,42 +40,30 @@ export default function SignalsPage() {
                 </div>
 
                 <div className="text-right">
-                  <p
-                    className={`font-bold text-lg ${
-                      s.direction === 'LONG'
-                        ? 'text-green-500'
-                        : 'text-red-500'
-                    }`}
-                  >
+                  <p className={`font-bold text-lg ${
+                    s.direction === 'LONG' ? 'text-green-500' : 'text-red-500'
+                  }`}>
                     {s.direction}
                   </p>
                   <p className="text-gray-400 text-xs">Сейчас</p>
                 </div>
               </div>
 
-              {/* Индикаторы */}
               {s.rsi && (
                 <div className="flex gap-2 text-xs mb-3">
                   <span className="bg-[#0A0A0A] px-2 py-1 rounded text-gray-400">
                     RSI: <span className="text-white">{s.rsi}</span>
                   </span>
-                  <span
-                    className={`bg-[#0A0A0A] px-2 py-1 rounded ${
-                      s.macd === 'BULLISH'
-                        ? 'text-green-500'
-                        : 'text-red-500'
-                    }`}
-                  >
+                  <span className={`bg-[#0A0A0A] px-2 py-1 rounded ${
+                    s.macd === 'BULLISH' ? 'text-green-500' : 'text-red-500'
+                  }`}>
                     MACD: {s.macd}
                   </span>
                 </div>
               )}
 
               <div className="h-1 bg-gray-800 rounded-full mb-3 overflow-hidden">
-                <div
-                  className="h-full bg-green-500"
-                  style={{ width: `${s.confidence}%` }}
-                />
+                <div className="h-full bg-green-500" style={{ width: `${s.confidence}%` }} />
               </div>
 
               <div className="flex gap-2 text-xs text-gray-400 mb-3">
@@ -99,10 +73,10 @@ export default function SignalsPage() {
               </div>
 
               <button
-                onClick={() => handleTrade(s)}
+                onClick={() => navigate('/signal-detail', { state: { signal: s } })}
                 className="w-full bg-[#00E5FF] hover:bg-[#00D5EF] text-black py-3 rounded-lg font-medium"
               >
-                Торговать →
+                Посмотреть детали →
               </button>
             </div>
           ))}
