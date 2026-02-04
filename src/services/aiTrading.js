@@ -1,10 +1,14 @@
 import { TechnicalAnalyzer } from './technicalAnalysis'
 import { AdvancedAnalyzer } from './advancedAnalysis'
+import { RiskManager } from './riskManagement'
 
 export class AITrader {
-  constructor(onSignal, onTrade) {
+  constructor(onSignal, onTrade, portfolio, tradeHistory) {
     this.onSignal = onSignal
     this.onTrade = onTrade
+    this.portfolio = portfolio
+    this.tradeHistory = tradeHistory
+    this.riskManager = new RiskManager(portfolio, tradeHistory)
     this.monitoring = []
     this.isActive = false
     this.analyzer = new TechnicalAnalyzer()
@@ -13,6 +17,16 @@ export class AITrader {
     this.recentSignals = new Map() // НОВОЕ - для фильтрации повторов
     this.cooldown = 3600000 // 1 час
     this.signalCooldown = 1800000 // 30 мин для сигналов
+  }
+
+  updateRiskManager(portfolio, tradeHistory) {
+    this.portfolio = portfolio
+    this.tradeHistory = tradeHistory
+    this.riskManager = new RiskManager(portfolio, tradeHistory)
+  }
+
+  getActivePositions() {
+    return []
   }
 
   start(pairs) {
@@ -28,6 +42,14 @@ export class AITrader {
 
   async checkSignals() {
     if (!this.isActive) return
+
+    // Проверка drawdown
+    const drawdownCheck = this.riskManager.checkDrawdown()
+    if (drawdownCheck.stop) {
+      console.log(`⛔ AI остановлен: ${drawdownCheck.reason}`)
+      this.isActive = false
+      return
+    }
 
     for (const pair of this.monitoring) {
       try {
@@ -65,24 +87,54 @@ export class AITrader {
           analysis.macd.signal === 'BULLISH' &&
           analysis.macd.histogram > 0 &&
           analysis.volume.signal === 'HIGH' &&
-          advancedCheck.shouldEnter
+          advancedCheck.shouldEnter &&
+          // 🆕 ML + Pattern проверки
+          analysis.mlPrediction.direction === 'UP' &&
+          analysis.mlPrediction.confidence > 60 &&
+          analysis.patterns.score > 5
         
         if (highQualitySignal) {
+          // 🆕 Рассчитываем размер позиции с Kelly
+          const avgConfidence = Math.round((analysis.confidence + advancedCheck.confidence) / 2)
+          const positionSize = this.riskManager.calculatePositionSize(avgConfidence, analysis)
+            
+          // 🆕 Проверка корреляции
+          const correlationCheck = this.riskManager.checkCorrelation(
+            this.getActivePositions(), 
+            pair.symbol
+          )
+          if (!correlationCheck.allowed) {
+            console.log(`⚠️ ${pair.symbol}: ${correlationCheck.reason}`)
+            continue
+          }
+            
+          // 🆕 Проверка portfolio heat
+          const riskAmount = (analysis.price - parseFloat(analysis.support)) * positionSize / analysis.price
+          const heatCheck = this.riskManager.canOpenPosition(
+            riskAmount,
+            this.getActivePositions()
+          )
+          if (!heatCheck.allowed) {
+            console.log(`⚠️ ${pair.symbol}: ${heatCheck.reason}`)
+            continue
+          }
+            
           const signal = {
             pair: pair.symbol,
-            confidence: Math.round((analysis.confidence + advancedCheck.confidence) / 2),
+            confidence: avgConfidence,
             direction: 'LONG',
             entry: analysis.price,
             tp: parseFloat(analysis.fibonacci.fib236),
             sl: parseFloat(analysis.support),
+            amount: positionSize, // 🆕 Динамический размер
             context: advancedCheck.context,
             analysis: advancedCheck
           }
-          
+            
           this.onSignal(signal)
           this.recentSignals.set(pair.symbol, Date.now())
-          
-          // Только если высочайшее качество - торговать автоматически
+            
+          // Торговать только при высочайшем качестве
           if (analysis.confidence > 85 && advancedCheck.confidence > 80) {
             this.onTrade(signal)
             this.recentTrades.set(pair.symbol, Date.now())

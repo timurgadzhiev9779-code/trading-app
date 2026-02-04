@@ -14,6 +14,9 @@ export default function CoinDetailPage() {
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showFib, setShowFib] = useState(false)
+  const [showMTF, setShowMTF] = useState(false)
+  const [showML, setShowML] = useState(false)
+  const [showPatterns, setShowPatterns] = useState(false)
 
   useEffect(() => {
     const ws = connectPriceStream(symbol, (data) => {
@@ -99,37 +102,145 @@ export default function CoinDetailPage() {
       </div>
 
       {/* Multi-Timeframe */}
-      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
-        <h3 className="font-bold mb-3">Multi-Timeframe Analysis</h3>
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="bg-[#0A0A0A] p-2 rounded text-center">
-            <p className="text-gray-400 mb-1">1H</p>
-            <p className={`font-bold ${analysis.current.trend.signal === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
-              {analysis.current.trend.signal}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">RSI: {analysis.current.rsi.value}</p>
+      <div className="bg-[#1A1A1A] rounded-xl mb-4 border border-gray-800">
+        <button 
+          onClick={() => setShowMTF(!showMTF)}
+          className="w-full p-4 flex justify-between items-center"
+        >
+          <h3 className="font-bold">Multi-Timeframe Analysis</h3>
+          <span className="text-gray-400">{showMTF ? '▲' : '▼'}</span>
+        </button>
+        
+        {showMTF && (
+          <div className="px-4 pb-4">
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                <p className="text-gray-400 mb-1">1H</p>
+                <p className={`font-bold ${analysis.current.trend.signal === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
+                  {analysis.current.trend.signal}
+                </p>
+                <p className="text-gray-400 text-xs mt-1">RSI: {analysis.current.rsi.value}</p>
+              </div>
+              <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                <p className="text-gray-400 mb-1">4H</p>
+                <p className={`font-bold ${analysis.h4.trend === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
+                  {analysis.h4.trend}
+                </p>
+                <p className="text-gray-400 text-xs mt-1">RSI: {analysis.h4.rsi}</p>
+              </div>
+              <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                <p className="text-gray-400 mb-1">1D</p>
+                <p className={`font-bold ${analysis.d1.trend === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
+                  {analysis.d1.trend}
+                </p>
+                <p className="text-gray-400 text-xs mt-1">RSI: {analysis.d1.rsi}</p>
+              </div>
+            </div>
+            <div className="mt-3 text-center">
+              <span className={`text-xs px-3 py-1 rounded ${analysis.alignment === 'ALIGNED' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                {analysis.alignment === 'ALIGNED' ? '✓ Timeframes Aligned' : '⚠ Mixed Signals'}
+              </span>
+            </div>
           </div>
-          <div className="bg-[#0A0A0A] p-2 rounded text-center">
-            <p className="text-gray-400 mb-1">4H</p>
-            <p className={`font-bold ${analysis.h4.trend === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
-              {analysis.h4.trend}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">RSI: {analysis.h4.rsi}</p>
-          </div>
-          <div className="bg-[#0A0A0A] p-2 rounded text-center">
-            <p className="text-gray-400 mb-1">1D</p>
-            <p className={`font-bold ${analysis.d1.trend === 'BULLISH' ? 'text-green-500' : 'text-red-500'}`}>
-              {analysis.d1.trend}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">RSI: {analysis.d1.rsi}</p>
-          </div>
-        </div>
-        <div className="mt-3 text-center">
-          <span className={`text-xs px-3 py-1 rounded ${analysis.alignment === 'ALIGNED' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
-            {analysis.alignment === 'ALIGNED' ? '✓ Timeframes Aligned' : '⚠ Mixed Signals'}
-          </span>
-        </div>
+        )}
       </div>
+
+      {/* ML Prediction */}
+      {analysis.current.mlPrediction && (
+        <div className="bg-[#1A1A1A] rounded-xl mb-4 border border-[#00E5FF]/30">
+          <button 
+            onClick={() => setShowML(!showML)}
+            className="w-full p-4 flex justify-between items-center"
+          >
+            <h3 className="font-bold">🤖 ML Предсказание</h3>
+            <span className="text-gray-400">{showML ? '▲' : '▼'}</span>
+          </button>
+          
+          {showML && (
+            <div className="px-4 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-gray-400">Направление:</span>
+                <span className={`text-xl font-bold ${
+                  analysis.current.mlPrediction.direction === 'UP' ? 'text-green-500' : 
+                  analysis.current.mlPrediction.direction === 'DOWN' ? 'text-red-500' : 'text-gray-400'
+                }`}>
+                  {analysis.current.mlPrediction.direction}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                  <p className="text-gray-400 mb-1">Up</p>
+                  <p className="text-green-500 font-bold">
+                    {(analysis.current.mlPrediction.probability.up * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                  <p className="text-gray-400 mb-1">Flat</p>
+                  <p className="text-gray-400 font-bold">
+                    {(analysis.current.mlPrediction.probability.flat * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div className="bg-[#0A0A0A] p-2 rounded text-center">
+                  <p className="text-gray-400 mb-1">Down</p>
+                  <p className="text-red-500 font-bold">
+                    {(analysis.current.mlPrediction.probability.down * 100).toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Patterns */}
+      {analysis.current.patterns && analysis.current.patterns.all.length > 0 && (
+        <div className="bg-[#1A1A1A] rounded-xl mb-4 border border-gray-800">
+          <button 
+            onClick={() => setShowPatterns(!showPatterns)}
+            className="w-full p-4 flex justify-between items-center"
+          >
+            <h3 className="font-bold">📊 Обнаруженные паттерны</h3>
+            <span className="text-gray-400">{showPatterns ? '▲' : '▼'}</span>
+          </button>
+          
+          {showPatterns && (
+            <div className="px-4 pb-4">
+              <div className="space-y-2">
+                {analysis.current.patterns.all.map((pattern, i) => (
+                  <div key={i} className="bg-[#0A0A0A] p-3 rounded-lg">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium">{pattern.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          pattern.type.includes('BULLISH') ? 'bg-green-500/20 text-green-500' :
+                          pattern.type.includes('BEARISH') ? 'bg-red-500/20 text-red-500' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {pattern.type.replace('_', ' ')}
+                        </span>
+                        <span className="text-xs text-gray-400">Сила: {pattern.strength}/10</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">{pattern.description}</p>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-gray-800">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Общий счёт:</span>
+                  <span className={`font-bold ${
+                    analysis.current.patterns.score > 0 ? 'text-green-500' : 
+                    analysis.current.patterns.score < 0 ? 'text-red-500' : 'text-gray-400'
+                  }`}>
+                    {analysis.current.patterns.score > 0 ? '+' : ''}{analysis.current.patterns.score}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fibonacci Levels - Collapsible */}
       <div className="bg-[#1A1A1A] rounded-xl mb-4 border border-gray-800">

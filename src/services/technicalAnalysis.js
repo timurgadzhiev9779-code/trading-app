@@ -1,6 +1,13 @@
 import { RSI, MACD, EMA, BollingerBands, ATR, ADX } from 'technicalindicators'
+import { MLPredictor } from './mlModel'
+import { PatternRecognizer } from './patternRecognition'
 
 export class TechnicalAnalyzer {
+  constructor() {
+    this.mlPredictor = new MLPredictor()
+    this.patternRecognizer = new PatternRecognizer()
+  }
+
   async analyze(symbol, interval = '1h') {
     // Получаем свечи с Binance
     const candles = await this.getCandles(symbol, interval)
@@ -61,7 +68,30 @@ export class TechnicalAnalyzer {
     const fib = this.calculateFibonacci(highs, lows)
     
     const currentPrice = closes[closes.length - 1]
-    
+
+    // ML PREDICTION
+    const mlPrediction = await this.mlPredictor.predict(candles, {
+      rsi: { value: currentRSI },
+      macd: currentMACD,
+      adx: { value: currentADX.adx },
+      atr: currentATR,
+      ema20: ema20[ema20.length - 1],
+      ema50: ema50[ema50.length - 1],
+      bb: currentBB,
+      volume: {
+        signal: currentVolume > avgVolume * 1.5 ? 'HIGH' : currentVolume > avgVolume ? 'ABOVE_AVG' : 'LOW'
+      }
+    })
+
+    // PATTERN RECOGNITION
+    const candlePatterns = this.patternRecognizer.recognizeCandlePatterns(candles)
+    const chartPatterns = this.patternRecognizer.recognizeChartPatterns(candles)
+    const allPatterns = [...candlePatterns, ...chartPatterns]
+    const bullishPatterns = allPatterns.filter(p => p.type.includes('BULLISH'))
+    const bearishPatterns = allPatterns.filter(p => p.type.includes('BEARISH'))
+    const patternScore = bullishPatterns.reduce((sum, p) => sum + p.strength, 0) - 
+                        bearishPatterns.reduce((sum, p) => sum + p.strength, 0)
+
     // Анализ
     return {
       price: currentPrice,
@@ -103,7 +133,23 @@ export class TechnicalAnalyzer {
         current: (currentVolume / 1000000).toFixed(2) + 'M',
         signal: currentVolume > avgVolume * 1.5 ? 'HIGH' : currentVolume > avgVolume ? 'ABOVE AVG' : 'LOW'
       },
-      fibonacci: fib
+      fibonacci: fib,
+      
+      // ML ДАННЫЕ
+      mlPrediction: {
+        direction: mlPrediction.direction,
+        confidence: mlPrediction.confidence,
+        probability: mlPrediction.probability
+      },
+      
+      // ПАТТЕРНЫ
+      patterns: {
+        all: allPatterns,
+        bullish: bullishPatterns,
+        bearish: bearishPatterns,
+        score: patternScore,
+        hasStrongBullish: bullishPatterns.some(p => p.strength >= 8)
+      }
     }
   }
   

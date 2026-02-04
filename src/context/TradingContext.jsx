@@ -170,32 +170,40 @@ export function TradingProvider({ children }) {
     return true
   }
 
-  // AI Trader init + сигналы + авто-открытие
-  useEffect(() => {
-    const trader = new AITrader(
-      (signal) => {
-        setAiSignals(prev => [signal, ...prev].slice(0, 5))
-        addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
-      },
-      (signal) => {
-        if (aiEnabled && portfolio.available > 100) {
-          openPosition({
-            pair: signal.pair,
-            type: signal.direction,
-            entry: signal.entry,
-            tp: signal.tp,
-            sl: signal.sl,
-            amount: Math.min(portfolio.available * 0.02, 1000),
-            isAI: true,
-            analysis: signal.analysis // Передаём анализ
-          })
-          addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
+    // AI Trader init + сигналы + авто-открытие
+    useEffect(() => {
+      const trader = new AITrader(
+        (signal) => {
+          setAiSignals(prev => [signal, ...prev].slice(0, 5))
+          addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
+        },
+        (signal) => {
+          if (aiEnabled && portfolio.available > 100) {
+            openPosition({
+              pair: signal.pair,
+              type: signal.direction,
+              entry: signal.entry,
+              tp: signal.tp,
+              sl: signal.sl,
+              amount: signal.amount, // Уже рассчитан с Kelly
+              isAI: true,
+              analysis: signal.analysis
+            })
+            addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
+          }
+        },
+        portfolio,
+        tradeHistory
+      )
+      setAiTrader(trader)
+  
+      // Обновляем risk manager при изменении портфеля
+      return () => {
+        if (trader) {
+          trader.updateRiskManager(portfolio, tradeHistory)
         }
       }
-    )
-
-    setAiTrader(trader)
-  }, [])
+    }, [portfolio, tradeHistory])
 
   // Закрыть позицию
   const closePosition = (pair, isAI) => {
