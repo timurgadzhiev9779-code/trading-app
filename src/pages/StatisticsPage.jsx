@@ -149,6 +149,15 @@ export default function StatisticsPage() {
           <span className="font-bold text-orange-400">{positions.manual.length}</span>
         </div>
       </div>
+
+      {/* Backtesting Link */}
+      <Link 
+        to="/backtest"
+        className="block bg-[#1A1A1A] rounded-xl p-4 border border-gray-800 mt-4"
+      >
+        <p className="font-bold">📈 Backtesting</p>
+        <p className="text-sm text-gray-400">Протестировать стратегию на истории</p>
+      </Link>
     </div>
   )
 }

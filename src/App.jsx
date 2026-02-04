@@ -12,6 +12,9 @@ import SignalsPage from './pages/SignalsPage'
 import SignalDetailPage from './pages/SignalDetailPage'
 import StatisticsPage from './pages/StatisticsPage'
 import SettingsPage from './pages/SettingsPage'
+import TradeReasonPage from './pages/TradeReasonPage'
+import BacktestPage from './pages/BacktestPage'
+import SignalHistoryPage from './pages/SignalHistoryPage'
 
 export default function App() {
   return (
@@ -29,6 +32,9 @@ export default function App() {
         <Route path="signal-detail" element={<SignalDetailPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="trade-reason" element={<TradeReasonPage />} />
+        <Route path="backtest" element={<BacktestPage />} />
+        <Route path="signal-history" element={<SignalHistoryPage />} />
       </Route>
     </Routes>
   )

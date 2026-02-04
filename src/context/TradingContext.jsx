@@ -24,7 +24,10 @@ export function TradingProvider({ children }) {
   const [notifications, setNotifications] = useState(() => 
     loadFromStorage('notifications', [])
   )
-  
+  const [signalHistory, setSignalHistory] = useState(() => 
+    loadFromStorage('signalHistory', [])
+  )
+
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
   const [toast, setToast] = useState(null)
@@ -50,6 +53,10 @@ export function TradingProvider({ children }) {
     saveToStorage('notifications', notifications)
   }, [notifications])
 
+  useEffect(() => {
+    saveToStorage('signalHistory', signalHistory)
+  }, [signalHistory])
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
   }
@@ -69,6 +76,17 @@ export function TradingProvider({ children }) {
 
   const clearNotifications = () => {
     setNotifications([])
+  }
+
+  const recordSignalDecision = (signal, decision) => {
+    const record = {
+      ...signal,
+      decision,
+      timestamp: Date.now(),
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    }
+    
+    setSignalHistory(prev => [record, ...prev].slice(0, 100))
   }
 
   const [manualMonitor] = useState(
@@ -115,10 +133,17 @@ export function TradingProvider({ children }) {
 
     const newPosition = {
       ...trade,
+      pair: trade.pair,
+      type: trade.type,
+      entry: trade.entry,
+      tp: trade.tp,
+      sl: trade.sl,
+      amount: trade.amount,
       openTime: Date.now(),
       profit: 0,
       profitPercent: 0,
-      time: 'Сейчас'
+      time: 'Сейчас',
+      analysis: trade.analysis || null
     }
 
     if (trade.isAI) {
@@ -161,7 +186,8 @@ export function TradingProvider({ children }) {
             tp: signal.tp,
             sl: signal.sl,
             amount: Math.min(portfolio.available * 0.02, 1000),
-            isAI: true
+            isAI: true,
+            analysis: signal.analysis // Передаём анализ
           })
           addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
         }
@@ -209,6 +235,89 @@ export function TradingProvider({ children }) {
     }
   }
 
+  // Частичное закрытие позиции
+  const partialClose = (pair, isAI, percentage) => {
+    const positionList = isAI ? positions.ai : positions.manual
+    const position = positionList.find(p => p.pair === pair)
+    
+    if (!position) return
+    
+    const closeAmount = position.amount * (percentage / 100)
+    const profit = ((position.currentPrice - position.entry) / position.entry) * closeAmount
+    
+    setTradeHistory(prev => [{
+      ...position,
+      amount: closeAmount,
+      profit: profit,
+      profitPercent: ((position.currentPrice - position.entry) / position.entry) * 100,
+      closeTime: Date.now(),
+      status: 'partial_close'
+    }, ...prev])
+    
+    if (isAI) {
+      setPositions(prev => ({
+        ...prev,
+        ai: prev.ai.map(p => 
+          p.pair === pair 
+            ? { ...p, amount: p.amount - closeAmount }
+            : p
+        )
+      }))
+    } else {
+      setPositions(prev => ({
+        ...prev,
+        manual: prev.manual.map(p => 
+          p.pair === pair 
+            ? { ...p, amount: p.amount - closeAmount }
+            : p
+        )
+      }))
+    }
+    
+    setPortfolio(prev => ({
+      ...prev,
+      available: prev.available + closeAmount + profit,
+      balance: prev.balance + profit,
+      pnl: prev.pnl + profit
+    }))
+    
+    showToast(`Закрыто ${percentage}% позиции ${pair}: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, 'success')
+  }
+
+  // Trailing Stop
+  const updateTrailingStop = (pair, isAI) => {
+    const positionList = isAI ? positions.ai : positions.manual
+    const position = positionList.find(p => p.pair === pair)
+    
+    if (!position || !position.currentPrice) return
+    
+    const currentProfit = ((position.currentPrice - position.entry) / position.entry) * 100
+    
+    if (currentProfit > 2) {
+      const newSL = position.entry * 1.005
+      
+      if (newSL > position.sl) {
+        if (isAI) {
+          setPositions(prev => ({
+            ...prev,
+            ai: prev.ai.map(p => 
+              p.pair === pair ? { ...p, sl: newSL } : p
+            )
+          }))
+        } else {
+          setPositions(prev => ({
+            ...prev,
+            manual: prev.manual.map(p => 
+              p.pair === pair ? { ...p, sl: newSL } : p
+            )
+          }))
+        }
+        
+        showToast(`Trailing Stop активирован для ${pair}`, 'info')
+      }
+    }
+  }
+  
   // Очистка мониторинга
   useEffect(() => {
     return () => monitor.stopAll()
@@ -247,7 +356,11 @@ export function TradingProvider({ children }) {
         manualMonitor,
         notifications,
         addNotification,
-        clearNotifications
+        clearNotifications,
+        signalHistory,
+        recordSignalDecision,
+        partialClose,
+        updateTrailingStop,
       }}
     >
       {children}

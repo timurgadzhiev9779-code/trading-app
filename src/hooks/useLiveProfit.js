@@ -4,6 +4,8 @@ export const useLiveProfit = (positions) => {
   const [prices, setPrices] = useState({})
 
   useEffect(() => {
+    if (!positions || positions.length === 0) return
+    
     const streams = []
     
     positions.forEach(pos => {
@@ -18,23 +20,29 @@ export const useLiveProfit = (positions) => {
         }))
       }
       
+      ws.onerror = (err) => console.error('WS error:', err)
+      
       streams.push(ws)
     })
 
-    return () => streams.forEach(ws => ws.close())
+    return () => streams.forEach(ws => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+    })
   }, [positions.length])
 
-  // Расчёт прибыли
   const withProfit = positions.map(pos => {
     const currentPrice = prices[pos.pair] || pos.entry
-    const profit = ((currentPrice - pos.entry) / pos.entry) * pos.amount
-    const profitPercent = ((currentPrice - pos.entry) / pos.entry) * 100
+    const priceDiff = currentPrice - pos.entry
+    const profit = (priceDiff / pos.entry) * (pos.amount || 0)
+    const profitPercent = (priceDiff / pos.entry) * 100
 
     return {
       ...pos,
       currentPrice,
-      profit: profit.toFixed(2),
-      profitPercent: profitPercent.toFixed(2)
+      profit: isNaN(profit) ? 0 : parseFloat(profit.toFixed(2)),
+      profitPercent: isNaN(profitPercent) ? 0 : parseFloat(profitPercent.toFixed(2))
     }
   })
 

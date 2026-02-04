@@ -6,6 +6,7 @@ import { useLiveProfit } from '../hooks/useLiveProfit'
 import { formatPrice } from '../utils/formatPrice'
 import MenuSidebar from '../components/MenuSidebar'
 import NotificationsPanel from '../components/NotificationsPanel'
+import PositionActionsModal from '../components/PositionActionsModal'
 
 export default function HomePage() {
   const {
@@ -15,12 +16,15 @@ export default function HomePage() {
     toggleAI,
     closePosition,
     aiSignals,
-    notifications
+    notifications,
+    partialClose,
+    updateTrailingStop
   } = useTrading()
   const navigate = useNavigate()
   const [showMenu, setShowMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-
+  const [selectedPosition, setSelectedPosition] = useState(null)
+  
   const aiPositionsLive = useLiveProfit(positions.ai)
   const manualPositionsLive = useLiveProfit(positions.manual)
 
@@ -46,7 +50,7 @@ export default function HomePage() {
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
         <p className="text-gray-400 text-sm">Общий баланс</p>
         <h1 className="text-4xl font-bold mb-2">
-          ${portfolio.balance.toLocaleString()}
+          ${(portfolio?.balance || 0).toLocaleString()}
         </h1>
 
         <div className="h-16 mb-3 flex items-end gap-1">
@@ -58,12 +62,12 @@ export default function HomePage() {
         <div className="flex justify-between text-sm">
           <div>
             <p className="text-gray-400">Доступно</p>
-            <p className="font-medium">${portfolio.available.toLocaleString()}</p>
+            <p className="font-medium">${(portfolio?.available || 0).toLocaleString()}</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400">P&L</p>
             <p className="text-green-500 font-medium">
-              +${portfolio.pnl} (+{portfolio.pnlPercent}%)
+              +${portfolio?.pnl || 0} (+{portfolio?.pnlPercent || 0}%)
             </p>
           </div>
         </div>
@@ -94,6 +98,56 @@ export default function HomePage() {
           </button>
         </div>
       </div>
+
+      {/* AI Positions */}
+      {aiPositionsLive.length > 0 && (
+        <div className="mb-4">
+          <h2 className="text-lg font-bold mb-3">🤖 AI Позиции</h2>
+          {aiPositionsLive.map((p, i) => (
+            <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-bold">{p.pair}</p>
+                  <p className="text-xs text-gray-400">{p.type}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${parseFloat(p.profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {parseFloat(p.profit || 0) >= 0 ? '+' : ''}{formatPrice(p.profit || 0)}
+                  </p>
+                  <p className={`text-xs ${parseFloat(p.profitPercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {parseFloat(p.profitPercent || 0) >= 0 ? '+' : ''}{parseFloat(p.profitPercent || 0).toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center text-xs mt-2">
+                <div className="text-gray-400">
+                  <span>Entry: {formatPrice(p.entry)}</span>
+                  <span className="mx-2">|</span>
+                  <span className="text-white">Now: {formatPrice(p.currentPrice)}</span>
+                </div>
+                <div className="flex gap-2">
+                  {p.analysis && (
+                    <Link 
+                      to="/trade-reason"
+                      state={{ position: p, analysis: p.analysis }}
+                      className="bg-[#00E5FF]/10 text-[#00E5FF] px-3 py-1 rounded text-xs"
+                    >
+                      Почему?
+                    </Link>
+                  )}
+                  <button 
+                    onClick={() => setSelectedPosition({ ...p, isAI: true })}
+                    className="bg-gray-800 text-white px-3 py-1 rounded text-xs"
+                  >
+                    Управление
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Signals */}
       <div className="flex justify-between items-center mb-3">
@@ -217,6 +271,14 @@ export default function HomePage() {
       {/* Sidebars */}
       {showMenu && <MenuSidebar onClose={() => setShowMenu(false)} />}
       {showNotifications && <NotificationsPanel notifications={notifications} onClose={() => setShowNotifications(false)} />}
+      {selectedPosition && (
+        <PositionActionsModal 
+          position={selectedPosition}
+          onClose={() => setSelectedPosition(null)}
+          onPartialClose={partialClose}
+          onTrailingStop={updateTrailingStop}
+        />
+      )}
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { useTrading } from '../context/TradingContext'
 export default function SignalDetailPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { openPosition, portfolio } = useTrading()
+  const { openPosition, portfolio, recordSignalDecision } = useTrading()
   const signal = location.state?.signal
   
   const [amount, setAmount] = useState('')
@@ -33,16 +33,18 @@ export default function SignalDetailPage() {
       tp: signal.tp,
       sl: signal.sl,
       amount: parseFloat(amount),
-      isAI: false
+      isAI: false,
+      analysis: signal.analysis
     })
     
     if (success) {
+      recordSignalDecision(signal, 'ACCEPTED')
       navigate('/')
     }
   }
 
   const handleReject = () => {
-    // Можно сохранить в rejected signals
+    recordSignalDecision(signal, 'REJECTED')// Можно сохранить в rejected signals
     navigate('/signals')
   }
 

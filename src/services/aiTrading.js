@@ -10,7 +10,9 @@ export class AITrader {
     this.analyzer = new TechnicalAnalyzer()
     this.advancedAnalyzer = new AdvancedAnalyzer()
     this.recentTrades = new Map()
+    this.recentSignals = new Map() // НОВОЕ - для фильтрации повторов
     this.cooldown = 3600000 // 1 час
+    this.signalCooldown = 1800000 // 30 мин для сигналов
   }
 
   start(pairs) {
@@ -31,10 +33,16 @@ export class AITrader {
       try {
         const symbol = pair.symbol.replace('/USDT', '')
         
-        // Проверка cooldown
+        // Проверка cooldown для трейдов
         const lastTrade = this.recentTrades.get(pair.symbol)
         if (lastTrade && Date.now() - lastTrade < this.cooldown) {
           console.log(`⏳ ${pair.symbol} в cooldown`)
+          continue
+        }
+        
+        // Проверка cooldown для сигналов (чтобы не спамить)
+        const lastSignal = this.recentSignals.get(pair.symbol)
+        if (lastSignal && Date.now() - lastSignal < this.signalCooldown) {
           continue
         }
         
@@ -46,18 +54,20 @@ export class AITrader {
         const advancedCheck = await this.advancedAnalyzer.shouldEnterTrade(symbol, analysis)
         console.log(`📊 ${pair.symbol} Advanced:`, advancedCheck)
         
-        // Комбинированные условия
-        const shouldTrade = 
-          analysis.confidence > 75 &&
+        // УЖЕСТОЧЁННЫЕ условия для качества
+        const highQualitySignal = 
+          analysis.confidence > 80 &&
+          advancedCheck.confidence > 75 &&
           mtf.alignment === 'ALIGNED' &&
           analysis.trend.signal === 'BULLISH' &&
           analysis.trendStrength.signal !== 'WEAK' &&
-          analysis.rsi.value > 35 && analysis.rsi.value < 65 &&
+          analysis.rsi.value > 40 && analysis.rsi.value < 60 &&
           analysis.macd.signal === 'BULLISH' &&
-          analysis.volume.signal !== 'LOW' &&
+          analysis.macd.histogram > 0 &&
+          analysis.volume.signal === 'HIGH' &&
           advancedCheck.shouldEnter
         
-        if (shouldTrade) {
+        if (highQualitySignal) {
           const signal = {
             pair: pair.symbol,
             confidence: Math.round((analysis.confidence + advancedCheck.confidence) / 2),
@@ -65,12 +75,18 @@ export class AITrader {
             entry: analysis.price,
             tp: parseFloat(analysis.fibonacci.fib236),
             sl: parseFloat(analysis.support),
-            context: advancedCheck.context
+            context: advancedCheck.context,
+            analysis: advancedCheck
           }
           
           this.onSignal(signal)
-          this.onTrade(signal)
-          this.recentTrades.set(pair.symbol, Date.now())
+          this.recentSignals.set(pair.symbol, Date.now())
+          
+          // Только если высочайшее качество - торговать автоматически
+          if (analysis.confidence > 85 && advancedCheck.confidence > 80) {
+            this.onTrade(signal)
+            this.recentTrades.set(pair.symbol, Date.now())
+          }
         }
       } catch (err) {
         console.error('AI analysis error:', err)
@@ -78,6 +94,23 @@ export class AITrader {
     }
 
     setTimeout(() => this.checkSignals(), 180000) // 3 минуты
+  }
+  
+  // Очистка старых записей
+  clearOldRecords() {
+    const now = Date.now()
+    
+    for (const [symbol, timestamp] of this.recentTrades.entries()) {
+      if (now - timestamp > this.cooldown) {
+        this.recentTrades.delete(symbol)
+      }
+    }
+    
+    for (const [symbol, timestamp] of this.recentSignals.entries()) {
+      if (now - timestamp > this.signalCooldown) {
+        this.recentSignals.delete(symbol)
+      }
+    }
   }
 }
 
@@ -87,6 +120,9 @@ export class ManualMonitor {
     this.monitoring = []
     this.isActive = false
     this.analyzer = new TechnicalAnalyzer()
+    this.advancedAnalyzer = new AdvancedAnalyzer()
+    this.recentSignals = new Map()
+    this.signalCooldown = 1800000 // 30 мин
   }
 
   start(pairs) {
@@ -105,26 +141,47 @@ export class ManualMonitor {
     for (const pair of this.monitoring) {
       try {
         const symbol = pair.symbol.replace('/USDT', '')
-        const analysis = await this.analyzer.analyze(symbol)
         
-        if (analysis.confidence > 70 && analysis.trend.signal === 'BULLISH') {
+        // Проверка cooldown
+        const lastSignal = this.recentSignals.get(pair.symbol)
+        if (lastSignal && Date.now() - lastSignal < this.signalCooldown) {
+          continue
+        }
+        
+        const mtf = await this.analyzer.analyzeMultiTimeframe(symbol)
+        const analysis = mtf.current
+        const advancedCheck = await this.advancedAnalyzer.shouldEnterTrade(symbol, analysis)
+        
+        // Для ручного мониторинга - чуть мягче критерии, но всё равно качественно
+        const goodSignal = 
+          analysis.confidence > 75 &&
+          advancedCheck.confidence > 70 &&
+          analysis.trend.signal === 'BULLISH' &&
+          analysis.rsi.value > 35 && analysis.rsi.value < 65 &&
+          advancedCheck.shouldEnter
+        
+        if (goodSignal) {
           this.onSignal({
             pair: pair.symbol,
-            confidence: analysis.confidence,
-            direction: 'LONG',
+            confidence: Math.round((analysis.confidence + advancedCheck.confidence) / 2),
+            direction: analysis.trend.signal === 'BULLISH' ? 'LONG' : 'SHORT',
             entry: analysis.price,
-            tp: parseFloat(analysis.resistance),
+            tp: parseFloat(analysis.fibonacci.fib236),
             sl: parseFloat(analysis.support),
             manual: true,
             rsi: analysis.rsi.value,
-            macd: analysis.macd.signal
+            macd: analysis.macd.signal,
+            context: advancedCheck.context,
+            analysis: advancedCheck
           })
+          
+          this.recentSignals.set(pair.symbol, Date.now())
         }
       } catch (err) {
         console.error('Manual monitor error:', err)
       }
     }
 
-    setTimeout(() => this.checkSignals(), 90000)
+    setTimeout(() => this.checkSignals(), 120000) // 2 минуты
   }
 }
