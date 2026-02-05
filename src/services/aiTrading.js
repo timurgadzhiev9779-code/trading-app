@@ -1,6 +1,7 @@
 import { TechnicalAnalyzer } from './technicalAnalysis'
 import { AdvancedAnalyzer } from './advancedAnalysis'
 import { RiskManager } from './riskManagement'
+import { MarketRegimeDetector } from './marketRegime'
 
 export class AITrader {
   constructor(onSignal, onTrade, portfolio, tradeHistory) {
@@ -15,6 +16,8 @@ export class AITrader {
     this.advancedAnalyzer = new AdvancedAnalyzer()
     this.recentTrades = new Map()
     this.recentSignals = new Map() // НОВОЕ - для фильтрации повторов
+    this.regimeDetector = new MarketRegimeDetector()
+    this.currentRegime = null
     this.cooldown = 3600000 // 1 час
     this.signalCooldown = 1800000 // 30 мин для сигналов
   }
@@ -55,6 +58,13 @@ export class AITrader {
       try {
         const symbol = pair.symbol.replace('/USDT', '')
         
+        if (!this.currentRegime || Math.random() < 0.1) {
+          this.currentRegime = await this.regimeDetector.detectRegime(symbol)
+          console.log(`📊 Market Regime: ${this.currentRegime.regime}`)
+        }
+        
+        const params = this.currentRegime.tradingParams
+
         // Проверка cooldown для трейдов
         const lastTrade = this.recentTrades.get(pair.symbol)
         if (lastTrade && Date.now() - lastTrade < this.cooldown) {
@@ -78,7 +88,7 @@ export class AITrader {
         
         // УЖЕСТОЧЁННЫЕ условия для качества
         const highQualitySignal = 
-          analysis.confidence > 80 &&
+          analysis.confidence > params.minConfidence &&
           advancedCheck.confidence > 75 &&
           mtf.alignment === 'ALIGNED' &&
           analysis.trend.signal === 'BULLISH' &&
@@ -96,7 +106,8 @@ export class AITrader {
         if (highQualitySignal) {
           // 🆕 Рассчитываем размер позиции с Kelly
           const avgConfidence = Math.round((analysis.confidence + advancedCheck.confidence) / 2)
-          const positionSize = this.riskManager.calculatePositionSize(avgConfidence, analysis)
+          let positionSize = this.riskManager.calculatePositionSize(avgConfidence, analysis)
+          positionSize *= params.positionSizeMultiplier
             
           // 🆕 Проверка корреляции
           const correlationCheck = this.riskManager.checkCorrelation(
@@ -124,11 +135,12 @@ export class AITrader {
             confidence: avgConfidence,
             direction: 'LONG',
             entry: analysis.price,
-            tp: parseFloat(analysis.fibonacci.fib236),
-            sl: parseFloat(analysis.support),
+            tp: analysis.price + (parseFloat(analysis.fibonacci.fib236) - analysis.price) * params.takeProfitMultiplier,
+            sl: analysis.price - (analysis.price - parseFloat(analysis.support)) * params.stopLossMultiplier,
             amount: positionSize, // 🆕 Динамический размер
             context: advancedCheck.context,
-            analysis: advancedCheck
+            analysis: advancedCheck,
+            regime: this.currentRegime.regime
           }
             
           this.onSignal(signal)
@@ -194,6 +206,8 @@ export class ManualMonitor {
       try {
         const symbol = pair.symbol.replace('/USDT', '')
         
+        
+
         // Проверка cooldown
         const lastSignal = this.recentSignals.get(pair.symbol)
         if (lastSignal && Date.now() - lastSignal < this.signalCooldown) {

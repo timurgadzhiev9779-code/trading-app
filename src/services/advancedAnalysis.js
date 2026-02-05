@@ -1,4 +1,9 @@
+import { SentimentAnalyzer } from './sentimentAnalysis'
+
 export class AdvancedAnalyzer {
+  constructor() {
+    this.sentimentAnalyzer = new SentimentAnalyzer()
+  }
   
   // Fear & Greed Index
   async getFearGreedIndex() {
@@ -145,15 +150,16 @@ export class AdvancedAnalyzer {
     return denominator === 0 ? 0 : numerator / denominator
   }
 
-  // Расширенный анализ с НОВЫМИ факторами
+     // Расширенный анализ с НОВЫМИ факторами
   async shouldEnterTrade(symbol, technicalAnalysis) {
-    const [btcTrend, btcDom, fearGreed, correlation, liquidity, volatility] = await Promise.all([
+    const [btcTrend, btcDom, fearGreed, correlation, liquidity, volatility, sentiment] = await Promise.all([
       this.getBTCTrend(),
       this.getBTCDominance(),
       this.getFearGreedIndex(),
       this.checkBTCCorrelation(symbol),
       this.checkLiquidity(symbol),
-      this.checkVolatility(symbol)
+      this.checkVolatility(symbol),
+      this.sentimentAnalyzer.getComprehensiveSentiment(symbol) // 🆕
     ])
     
     const session = this.checkTradingSession()
@@ -166,14 +172,15 @@ export class AdvancedAnalyzer {
       technicalOK: technicalAnalysis.confidence > 70,
       liquidityOK: liquidity.liquid,
       volatilityOK: volatility.suitable,
-      sessionOK: session.active !== 'LOW'
+      sessionOK: session.active !== 'LOW',
+      sentimentOK: sentiment.composite > 45 && sentiment.signal !== 'BEARISH' // 🆕
     }
 
     const score = Object.values(checks).filter(Boolean).length
     const maxScore = Object.keys(checks).length
 
     return {
-      shouldEnter: score >= 6,
+      shouldEnter: score >= 7, // 7 из 9 (77%)
       score: score,
       maxScore: maxScore,
       confidence: Math.round((score / maxScore) * 100),
@@ -185,7 +192,8 @@ export class AdvancedAnalyzer {
         correlation,
         liquidity,
         volatility,
-        session
+        session,
+        sentiment // 🆕
       }
     }
   }

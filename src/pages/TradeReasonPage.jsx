@@ -84,8 +84,84 @@ export default function TradeReasonPage() {
             title="Торговая сессия"
             description={`${context.session.session} (активность: ${context.session.active})`}
           />
+
+          <CheckItem 
+            passed={checks.sentimentOK}
+            title="Market Sentiment"
+            description={`${context.sentiment?.signal || 'N/A'} (Score: ${context.sentiment?.composite || 0})`}
+          />
         </div>
       </div>
+
+      {/* Market Regime */}
+      {position.regime && (
+        <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+          <h3 className="font-bold mb-3">📊 Режим рынка</h3>
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-400">Режим:</span>
+            <span className="text-[#00E5FF] font-bold">{position.regime}</span>
+          </div>
+          {position.analysis?.context?.regime && (
+            <p className="text-xs text-gray-400">
+              {position.analysis.context.regime.tradingParams.description}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Sentiment Breakdown */}
+      {context.sentiment && (
+        <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+          <h3 className="font-bold mb-3">📰 Sentiment Breakdown</h3>
+          
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Fear & Greed Index</span>
+              <span className={`font-medium ${
+                context.sentiment.breakdown.fearGreed.value > 50 ? 'text-green-500' : 'text-orange-500'
+              }`}>
+                {context.sentiment.breakdown.fearGreed.value} - {context.sentiment.breakdown.fearGreed.label}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">News Sentiment</span>
+              <span className={`font-medium ${
+                context.sentiment.breakdown.news.sentiment === 'positive' ? 'text-green-500' :
+                context.sentiment.breakdown.news.sentiment === 'negative' ? 'text-red-500' : 'text-gray-400'
+              }`}>
+                {context.sentiment.breakdown.news.score} - {context.sentiment.breakdown.news.sentiment}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Social Volume</span>
+              <span className="font-medium text-[#00E5FF]">
+                {context.sentiment.breakdown.social.volume} ({context.sentiment.breakdown.social.trend})
+              </span>
+            </div>
+          </div>
+
+          {/* Recent News */}
+          {context.sentiment.breakdown.news.articles.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-800">
+              <p className="text-xs text-gray-400 mb-2">Последние новости:</p>
+              {context.sentiment.breakdown.news.articles.map((article, i) => (
+                <a 
+                  key={i}
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-[#0A0A0A] p-2 rounded mb-2 text-xs hover:bg-gray-800"
+                >
+                  <p className="text-white line-clamp-2">{article.title}</p>
+                  <p className="text-gray-500 mt-1">{article.source} • {article.published}</p>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Technical Details */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-800">
