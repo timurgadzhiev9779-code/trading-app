@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, TrendingUp, TrendingDown, Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getTopCoins, isBlocked } from '../services/coingecko'
+import { SignalSkeleton } from '../components/LoadingSkeleton'
 
 export default function MarketPage() {
   const [coins, setCoins] = useState([])
@@ -25,8 +26,13 @@ export default function MarketPage() {
 
   if (loading) {
     return (
-      <div className="text-white p-4 flex items-center justify-center h-screen">
-        <p className="text-gray-400">Загрузка топ-100 монет...</p>
+      <div className="text-white p-4 pb-24 max-w-md mx-auto">
+        <h1 className="text-2xl font-bold mb-4">📊 Топ-100 CoinMarketCap</h1>
+        <div className="space-y-2">
+          {Array(5).fill(0).map((_, i) => (
+            <SignalSkeleton key={i} />
+          ))}
+        </div>
       </div>
     )
   }

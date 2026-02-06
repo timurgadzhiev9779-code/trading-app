@@ -14,8 +14,8 @@ export default function PositionActionsModal({ position, onClose, onPartialClose
           <button onClick={onClose}><X size={24} className="text-gray-400" /></button>
         </div>
 
-        {/* Current Info */}
-        <div className="bg-[#0A0A0A] rounded-lg p-4 mb-4">
+                {/* Current Info */}
+                <div className="bg-[#0A0A0A] rounded-lg p-4 mb-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-gray-400">Entry</p>
@@ -34,6 +34,10 @@ export default function PositionActionsModal({ position, onClose, onPartialClose
             <div>
               <p className="text-gray-400">Amount</p>
               <p className="font-bold">${position.amount?.toFixed(2)}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-gray-400">Открыто</p>
+              <p className="font-bold">{new Date(position.openTime).toLocaleString('ru-RU')}</p>
             </div>
           </div>
         </div>
@@ -63,7 +67,7 @@ export default function PositionActionsModal({ position, onClose, onPartialClose
           </div>
           <button 
             onClick={() => {
-              onPartialClose(position.pair, position.isAI, percentage)
+              onPartialClose(position.pair, position.isAI, percentage, position.currentPrice)
               onClose()
             }}
             className="w-full bg-orange-400 text-black py-3 rounded-lg font-medium"
@@ -87,7 +91,7 @@ export default function PositionActionsModal({ position, onClose, onPartialClose
         {/* Close Full */}
         <button 
           onClick={() => {
-            onPartialClose(position.pair, position.isAI, 100)
+            onPartialClose(position.pair, position.isAI, 100, position.currentPrice)
             onClose()
           }}
           className="w-full bg-red-500/20 border border-red-500/30 text-red-500 py-3 rounded-lg font-medium"

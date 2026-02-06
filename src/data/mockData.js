@@ -19,11 +19,6 @@ export const portfolio = {
   ]
   
   export const positions = {
-    ai: [
-      { pair: 'BTC/USDT', type: 'LONG', entry: 92500, tp: 98000, sl: 91500, profit: 80.76, profitPercent: 0.57, time: '2h' },
-      { pair: 'ETH/USDT', type: 'LONG', entry: 3280, tp: 3600, sl: 3150, profit: 153.72, profitPercent: 1.82, time: '5h' },
-    ],
-    manual: [
-      { pair: 'SOL/USDT', type: 'LONG', entry: 185, tp: 198, sl: 180, profit: -60, profitPercent: -2.15, time: '1h' },
-    ]
+    ai: [],
+    manual: []
   }

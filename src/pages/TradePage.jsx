@@ -8,51 +8,74 @@ export default function TradePage() {
   const { portfolio, openPosition } = useTrading()
   const [amount, setAmount] = useState('')
   const [useAI, setUseAI] = useState(true)
-  const [btcPrice, setBtcPrice] = useState(0)
+  const [currentPrice, setCurrentPrice] = useState(0)
+  const [selectedCoin, setSelectedCoin] = useState('BTC')
 
   const [tpPercent, setTpPercent] = useState(3)
   const [slPercent, setSlPercent] = useState(2)
+
+  const AVAILABLE_COINS = [
+    { symbol: 'BTC', name: 'Bitcoin' },
+    { symbol: 'ETH', name: 'Ethereum' },
+    { symbol: 'SOL', name: 'Solana' },
+    { symbol: 'AVAX', name: 'Avalanche' },
+    { symbol: 'LINK', name: 'Chainlink' },
+    { symbol: 'MATIC', name: 'Polygon' },
+    { symbol: 'DOT', name: 'Polkadot' },
+    { symbol: 'CHESS', name: 'Chess' },
+    { symbol: 'UNI', name: 'Uniswap' }
+  ]
 
   const aiSignal = aiSignals[0]
 
   useEffect(() => {
     let ws
+    let isCancelled = false
 
     try {
-      ws = connectPriceStream('BTC', (data) => {
-        setBtcPrice(data.price)
+      ws = connectPriceStream(selectedCoin, (data) => {
+        if (!isCancelled) {
+          setCurrentPrice(data.price)
+        }
       })
     } catch (err) {
       console.error('WS error:', err)
-      setBtcPrice(95000)
+      if (!isCancelled) {
+        setCurrentPrice(selectedCoin === 'BTC' ? 95000 : 3400)
+      }
     }
 
     return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      isCancelled = true
+      if (ws) {
         ws.close()
       }
     }
-  }, [])
+  }, [selectedCoin])
 
   const handleTrade = () => {
-    if (!amount || amount <= 0) {
-      alert('Введите сумму')
+    if (!amount || amount < 10) {
+      alert('Минимальная сумма: $10')
+      return
+    }
+
+    if (amount > portfolio.available) {
+      alert('Недостаточно средств')
       return
     }
 
     const success = openPosition({
-      pair: 'BTC/USDT',
+      pair: `${selectedCoin}/USDT`,
       type: 'LONG',
-      entry: btcPrice,
-      tp: btcPrice * (1 + tpPercent / 100),
-      sl: btcPrice * (1 - slPercent / 100),
+      entry: currentPrice,
+      tp: currentPrice * (1 + tpPercent / 100),
+      sl: currentPrice * (1 - slPercent / 100),
       amount: parseFloat(amount),
-      isAI: useAI
+      isAI: false
     })
 
     if (success) {
       setAmount('')
-      alert('✅ Позиция открыта по цене $' + btcPrice.toFixed(2))
     }
   }
 
@@ -60,20 +83,35 @@ export default function TradePage() {
     <div className="text-white p-4 pb-24 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-4">⚡ Торговля</h1>
 
-      {/* Pair */}
-      <button className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg p-4 mb-4 flex justify-between items-center">
+            {/* Coin Selector */}
+            <div className="mb-4">
+        <label className="text-sm text-gray-400 block mb-2">Монета</label>
+        <select 
+          value={selectedCoin}
+          onChange={(e) => setSelectedCoin(e.target.value)}
+          className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg px-4 py-3 text-white"
+        >
+          {AVAILABLE_COINS.map(coin => (
+            <option key={coin.symbol} value={coin.symbol}>
+              {coin.symbol}/USDT - {coin.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Price Display */}
+      <div className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg p-4 mb-4 flex justify-between items-center">
         <div>
           <div className="flex items-center gap-2">
-            <p className="font-bold text-lg">BTC/USDT</p>
+            <p className="font-bold text-lg">{selectedCoin}/USDT</p>
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           </div>
-          <p className="text-sm text-gray-400">${btcPrice.toLocaleString()}</p>
+          <p className="text-sm text-gray-400">${currentPrice.toLocaleString()}</p>
         </div>
-        <ChevronDown size={20} className="text-gray-400" />
-      </button>
+      </div>
 
       {/* AI Suggestion */}
-      {useAI && btcPrice > 0 && (
+      {useAI && currentPrice > 0 && (
         <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={16} className="text-[#00E5FF]" />
@@ -83,12 +121,12 @@ export default function TradePage() {
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-gray-300">
-            <span>Current: ${btcPrice.toFixed(2)}</span>
+            <span>Current: ${currentPrice.toFixed(2)}</span>
             <span>
-              TP: {(btcPrice * (1 + tpPercent / 100)).toFixed(2)}
+              TP: {(currentPrice * (1 + tpPercent / 100)).toFixed(2)}
             </span>
             <span>
-              SL: {(btcPrice * (1 - slPercent / 100)).toFixed(2)}
+              SL: {(currentPrice * (1 - slPercent / 100)).toFixed(2)}
             </span>
           </div>
         </div>

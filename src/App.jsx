@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import OnboardingPage from './pages/OnboardingPage'
 import Layout from './Layout'
 import HomePage from './pages/HomePage'
 import AIPage from './pages/AIPage'
@@ -17,6 +19,25 @@ import BacktestPage from './pages/BacktestPage'
 import SignalHistoryPage from './pages/SignalHistoryPage'
 
 export default function App() {
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const completed = localStorage.getItem('onboarding_completed')
+    if (!completed) {
+      setShowOnboarding(true)
+    }
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen bg-[#0A0A0A]"></div>
+  }
+
+  if (showOnboarding) {
+    return <OnboardingPage onComplete={() => setShowOnboarding(false)} />
+  }
+
   return (
     <Routes>
       <Route path="/" element={<Layout />}>

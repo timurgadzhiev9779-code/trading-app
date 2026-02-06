@@ -86,22 +86,17 @@ export class AITrader {
         const advancedCheck = await this.advancedAnalyzer.shouldEnterTrade(symbol, analysis)
         console.log(`📊 ${pair.symbol} Advanced:`, advancedCheck)
         
-        // УЖЕСТОЧЁННЫЕ условия для качества
+        console.log(`📊 ${pair.symbol} - Conf: ${analysis.confidence}, Min: ${pair.minConfidence}`)
+        
+        // 🔥 ИСПОЛЬЗУЕМ НАСТРОЙКИ ИЗ ПОЛЗУНКА
         const highQualitySignal = 
-          analysis.confidence > params.minConfidence &&
-          advancedCheck.confidence > 75 &&
+          analysis.confidence > (pair.minConfidence || 75) && // Из ползунка!
+          advancedCheck.confidence > 60 &&
           mtf.alignment === 'ALIGNED' &&
           analysis.trend.signal === 'BULLISH' &&
-          analysis.trendStrength.signal !== 'WEAK' &&
-          analysis.rsi.value > 40 && analysis.rsi.value < 60 &&
+          analysis.rsi.value > 30 && analysis.rsi.value < 65 &&
           analysis.macd.signal === 'BULLISH' &&
-          analysis.macd.histogram > 0 &&
-          analysis.volume.signal === 'HIGH' &&
-          advancedCheck.shouldEnter &&
-          // 🆕 ML + Pattern проверки
-          analysis.mlPrediction.direction === 'UP' &&
-          analysis.mlPrediction.confidence > 60 &&
-          analysis.patterns.score > 5
+          analysis.volume.signal !== 'LOW'
         
         if (highQualitySignal) {
           // 🆕 Рассчитываем размер позиции с Kelly

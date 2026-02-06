@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { portfolio as initialPortfolio, positions as initialPositions } from '../data/mockData'
 import { AITrader, ManualMonitor } from '../services/aiTrading'
 import { PositionMonitor } from '../services/positionMonitor'
@@ -98,52 +98,89 @@ export function TradingProvider({ children }) {
       })
   )
 
+  const monitorCallbackRef = React.useRef()
+  
+  monitorCallbackRef.current = (pair, profit, reason, isAI) => {
+    const positionList = isAI ? positions.ai : positions.manual
+    const position = positionList.find(p => p.pair === pair)
+    
+    if (!position) return
+
+    const entry = parseFloat(position.entry)
+    const amount = parseFloat(position.amount)
+
+    const closedTrade = {
+      pair: position.pair,
+      type: position.type,
+      entry: entry,
+      exit: entry + (profit / amount * entry),
+      amount: amount,
+      profit: parseFloat(profit.toFixed(2)),
+      profitPercent: parseFloat(((profit / amount) * 100).toFixed(2)),
+      isAI: isAI,
+      openTime: position.openTime || Date.now() - 3600000,
+      closeTime: Date.now(),
+      time: new Date().toLocaleString('ru-RU'),
+      status: 'closed'
+    }
+
+    setTradeHistory(prev => [closedTrade, ...prev])
+    
+    if (isAI) {
+      setPositions(prev => ({ ...prev, ai: prev.ai.filter(p => p.pair !== pair) }))
+    } else {
+      setPositions(prev => ({ ...prev, manual: prev.manual.filter(p => p.pair !== pair) }))
+    }
+
+    setPortfolio(prev => ({
+      ...prev,
+      available: prev.available + amount + profit,
+      balance: prev.balance + profit,
+      pnl: prev.pnl + profit,
+      pnlPercent: ((prev.balance + profit - 10000) / 10000) * 100
+    }))
+
+    if (reason === 'TP HIT') {
+      showToast(`🎯 Take Profit: ${pair} +$${profit.toFixed(2)}`, 'success')
+      addNotification('trade', 'Take Profit достигнут', `${pair}: +$${profit.toFixed(2)}`)
+    } else {
+      showToast(`🛡️ Stop Loss: ${pair} $${profit.toFixed(2)}`, 'error')
+      addNotification('alert', 'Stop Loss сработал', `${pair}: $${profit.toFixed(2)}`)
+    }
+  }
+
   const [monitor] = useState(
     () =>
-      new PositionMonitor((pair, profit, reason) => {
-        closePosition(pair, true)
-
-        if (reason === 'TP HIT') {
-          showToast(
-            `🎯 Take Profit достигнут! ${pair} +$${profit.toFixed(2)}`,
-            'success'
-          )
-          addNotification('trade', 'Take Profit достигнут', `${pair}: +$${profit.toFixed(2)}`)
-        } else {
-          showToast(
-            `🛡️ Stop Loss сработал. ${pair} ${profit.toFixed(2)}`,
-            'error'
-          )
-          addNotification('alert', 'Stop Loss сработал', `${pair}: ${profit.toFixed(2)}`)
-        }
+      new PositionMonitor((pair, profit, reason, isAI) => {
+        monitorCallbackRef.current(pair, profit, reason, isAI)
       })
   )
 
-  // Открыть позицию
-  const openPosition = (trade) => {
-    if (trade.amount > portfolio.available) {
-      alert('Недостаточно средств!')
+      // Открыть позицию
+      const openPosition = (trade) => {
+        if (trade.amount < 10) {
+      showToast('Минимум $10', 'error')
       return false
     }
 
-    if (trade.amount < 10) {
-      alert('Минимум $10')
+    if (trade.amount > portfolio.available) {
+      showToast('Недостаточно средств', 'error')
       return false
     }
 
     const newPosition = {
-      ...trade,
       pair: trade.pair,
       type: trade.type,
-      entry: trade.entry,
-      tp: trade.tp,
-      sl: trade.sl,
-      amount: trade.amount,
+      entry: parseFloat(trade.entry),
+      tp: parseFloat(trade.tp),
+      sl: parseFloat(trade.sl),
+      amount: parseFloat(trade.amount),
       openTime: Date.now(),
       profit: 0,
       profitPercent: 0,
-      time: 'Сейчас',
-      analysis: trade.analysis || null
+      time: new Date().toLocaleString('ru-RU'),
+      analysis: trade.analysis || null,
+      isAI: trade.isAI || false
     }
 
     if (trade.isAI) {
@@ -151,11 +188,13 @@ export function TradingProvider({ children }) {
         ...prev,
         ai: [...prev.ai, newPosition]
       }))
+      showToast(`AI открыл ${trade.pair}`, 'success')
     } else {
       setPositions(prev => ({
         ...prev,
         manual: [...prev.manual, newPosition]
       }))
+      showToast(`Позиция открыта: ${trade.pair}`, 'success')
     }
 
     setPortfolio(prev => ({
@@ -165,121 +204,160 @@ export function TradingProvider({ children }) {
 
     monitor.watchPosition(newPosition)
 
-    showToast(`✅ Позиция открыта: ${trade.pair}`, 'success')
-
     return true
   }
 
-    // AI Trader init + сигналы + авто-открытие
-    useEffect(() => {
-      const trader = new AITrader(
-        (signal) => {
-          setAiSignals(prev => [signal, ...prev].slice(0, 5))
-          addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
-        },
-        (signal) => {
-          if (aiEnabled && portfolio.available > 100) {
-            openPosition({
-              pair: signal.pair,
-              type: signal.direction,
-              entry: signal.entry,
-              tp: signal.tp,
-              sl: signal.sl,
-              amount: signal.amount, // Уже рассчитан с Kelly
-              isAI: true,
-              analysis: signal.analysis
-            })
-            addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
+        // AI Trader init + сигналы + авто-открытие
+        useEffect(() => {
+          const trader = new AITrader(
+            (signal) => {
+              setAiSignals(prev => [signal, ...prev].slice(0, 5))
+              addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
+            },
+            (signal) => {
+              if (aiEnabled && portfolio.available > 100) {
+                openPosition({
+                  pair: signal.pair,
+                  type: signal.direction,
+                  entry: signal.entry,
+                  tp: signal.tp,
+                  sl: signal.sl,
+                  amount: signal.amount,
+                  isAI: true,
+                  analysis: signal.analysis
+                })
+                addNotification('trade', 'AI открыл позицию', `${signal.pair} по цене $${signal.entry.toFixed(2)}`)
+              }
+            },
+            portfolio,
+            tradeHistory
+          )
+          
+          setAiTrader(trader)
+          
+          // 🔥 ЗАГРУЖАЕМ НАСТРОЙКИ
+          if (aiEnabled) {
+            const savedMonitoring = localStorage.getItem('aiMonitoring')
+            if (savedMonitoring) {
+              const coins = JSON.parse(savedMonitoring)
+              const enabled = coins.filter(c => c.enabled)
+              trader.start(enabled)
+            }
           }
-        },
-        portfolio,
-        tradeHistory
-      )
-      setAiTrader(trader)
-  
-      // Обновляем risk manager при изменении портфеля
-      return () => {
-        if (trader) {
-          trader.updateRiskManager(portfolio, tradeHistory)
-        }
-      }
-    }, [portfolio, tradeHistory])
+    
+          return () => {
+            if (trader) trader.stop()
+          }
+        }, [aiEnabled])
 
-  // Закрыть позицию
-  const closePosition = (pair, isAI) => {
-    let closedPosition
+            // Закрыть позицию
+            const closePosition = (pair, isAI) => {
+              const positionList = isAI ? positions.ai : positions.manual
+              const position = positionList.find(p => p.pair === pair)
+              
+              if (!position) return
 
+    const currentPrice = parseFloat(position.currentPrice || position.entry)
+    const entry = parseFloat(position.entry)
+    const amount = parseFloat(position.amount)
+    const profit = parseFloat((((currentPrice - entry) / entry) * amount).toFixed(2))
+
+    const closedTrade = {
+      pair: position.pair,
+      type: position.type,
+      entry: entry,
+      exit: currentPrice,
+      amount: amount,
+      profit: profit,
+      profitPercent: parseFloat((((currentPrice - entry) / entry) * 100).toFixed(2)),
+      isAI: isAI,
+      openTime: position.openTime || Date.now() - 3600000,
+      closeTime: Date.now(),
+      time: new Date().toLocaleString('ru-RU'),
+      status: 'closed'
+    }
+
+    setTradeHistory(prev => [closedTrade, ...prev])
+    
     if (isAI) {
-      closedPosition = positions.ai.find(p => p.pair === pair)
-      setPositions(prev => ({
-        ...prev,
-        ai: prev.ai.filter(p => p.pair !== pair)
-      }))
+      setPositions(prev => ({ ...prev, ai: prev.ai.filter(p => p.pair !== pair) }))
     } else {
-      closedPosition = positions.manual.find(p => p.pair === pair)
-      setPositions(prev => ({
-        ...prev,
-        manual: prev.manual.filter(p => p.pair !== pair)
-      }))
+      setPositions(prev => ({ ...prev, manual: prev.manual.filter(p => p.pair !== pair) }))
     }
 
-    if (closedPosition) {
-      setTradeHistory(prev => [
-        {
-          ...closedPosition,
-          closeTime: Date.now(),
-          status: 'closed'
-        },
-        ...prev
-      ])
+    setPortfolio(prev => ({
+      ...prev,
+      available: prev.available + amount + profit,
+      balance: prev.balance + profit,
+      pnl: prev.pnl + profit,
+      pnlPercent: ((prev.balance + profit - 10000) / 10000) * 100
+    }))
 
-      setPortfolio(prev => ({
-        ...prev,
-        available:
-          prev.available + closedPosition.amount + closedPosition.profit,
-        balance: prev.balance + closedPosition.profit,
-        pnl: prev.pnl + closedPosition.profit
-      }))
-    }
+    showToast(
+      profit >= 0 ? `✅ +$${profit.toFixed(2)}` : `❌ ${profit.toFixed(2)}`,
+      profit >= 0 ? 'success' : 'error'
+    )
   }
 
-  // Частичное закрытие позиции
-  const partialClose = (pair, isAI, percentage) => {
+      // Частичное закрытие позиции
+  const partialClose = (pair, isAI, percentage, passedCurrentPrice) => {
     const positionList = isAI ? positions.ai : positions.manual
     const position = positionList.find(p => p.pair === pair)
     
-    if (!position) return
+    if (!position) {
+      showToast('Ошибка: позиция не найдена', 'error')
+      return
+    }
+
+    const currentPrice = parseFloat(passedCurrentPrice || position.currentPrice || position.entry)
+    const entry = parseFloat(position.entry)
+    const totalAmount = parseFloat(position.amount)
     
-    const closeAmount = position.amount * (percentage / 100)
-    const profit = ((position.currentPrice - position.entry) / position.entry) * closeAmount
+    const closeAmount = parseFloat((totalAmount * percentage / 100).toFixed(2))
+    const remainingAmount = parseFloat((totalAmount - closeAmount).toFixed(2))
     
-    setTradeHistory(prev => [{
-      ...position,
+    if (closeAmount <= 0 || isNaN(closeAmount)) {
+      showToast('Ошибка расчёта', 'error')
+      return
+    }
+
+    const profit = parseFloat((((currentPrice - entry) / entry) * closeAmount).toFixed(2))
+    
+    const closedTrade = {
+      pair: position.pair,
+      type: position.type,
+      entry: entry,
+      exit: currentPrice,
       amount: closeAmount,
       profit: profit,
-      profitPercent: ((position.currentPrice - position.entry) / position.entry) * 100,
+      profitPercent: parseFloat((((currentPrice - entry) / entry) * 100).toFixed(2)),
+      isAI: isAI,
+      openTime: position.openTime || Date.now() - 3600000,
       closeTime: Date.now(),
+      time: new Date().toLocaleString('ru-RU'),
       status: 'partial_close'
-    }, ...prev])
+    }
+
+    setTradeHistory(prev => [closedTrade, ...prev])
     
-    if (isAI) {
-      setPositions(prev => ({
-        ...prev,
-        ai: prev.ai.map(p => 
-          p.pair === pair 
-            ? { ...p, amount: p.amount - closeAmount }
-            : p
-        )
-      }))
+    if (remainingAmount >= 10) {
+      if (isAI) {
+        setPositions(prev => ({
+          ...prev,
+          ai: prev.ai.map(p => p.pair === pair ? { ...p, amount: remainingAmount } : p)
+        }))
+      } else {
+        setPositions(prev => ({
+          ...prev,
+          manual: prev.manual.map(p => p.pair === pair ? { ...p, amount: remainingAmount } : p)
+        }))
+      }
     } else {
-      setPositions(prev => ({
-        ...prev,
-        manual: prev.manual.map(p => 
-          p.pair === pair 
-            ? { ...p, amount: p.amount - closeAmount }
-            : p
-        )
-      }))
+      if (isAI) {
+        setPositions(prev => ({ ...prev, ai: prev.ai.filter(p => p.pair !== pair) }))
+      } else {
+        setPositions(prev => ({ ...prev, manual: prev.manual.filter(p => p.pair !== pair) }))
+      }
     }
     
     setPortfolio(prev => ({
@@ -288,8 +366,8 @@ export function TradingProvider({ children }) {
       balance: prev.balance + profit,
       pnl: prev.pnl + profit
     }))
-    
-    showToast(`Закрыто ${percentage}% позиции ${pair}: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, 'success')
+
+    showToast(`Закрыто ${percentage}%: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, 'success')
   }
 
   // Trailing Stop
@@ -331,23 +409,32 @@ export function TradingProvider({ children }) {
     return () => monitor.stopAll()
   }, [])
 
-  // Toggle AI
-  const toggleAI = () => {
-    setAiEnabled(prev => {
-      const newState = !prev
-
-      if (newState && aiTrader) {
-        aiTrader.start([
-          { symbol: 'BTC/USDT', price: 95000 },
-          { symbol: 'ETH/USDT', price: 3400 }
-        ])
-      } else if (aiTrader) {
-        aiTrader.stop()
-      }
-
-      return newState
-    })
-  }
+    // Toggle AI
+    const toggleAI = () => {
+      setAiEnabled(prev => {
+        const newState = !prev
+  
+        if (newState && aiTrader) {
+          // Загружаем настройки из AI Monitoring
+          const savedMonitoring = localStorage.getItem('aiMonitoring')
+          if (savedMonitoring) {
+            const coins = JSON.parse(savedMonitoring)
+            const enabled = coins.filter(c => c.enabled)
+            aiTrader.start(enabled)
+          } else {
+            // Дефолтные значения
+            aiTrader.start([
+              { symbol: 'BTC/USDT', minConfidence: 75 },
+              { symbol: 'ETH/USDT', minConfidence: 75 }
+            ])
+          }
+        } else if (aiTrader) {
+          aiTrader.stop()
+        }
+  
+        return newState
+      })
+    }
 
   return (
     <TradingContext.Provider

@@ -35,7 +35,13 @@ export default function AIMonitoringPage() {
 
   useEffect(() => {
     localStorage.setItem('aiMonitoring', JSON.stringify(coins))
-  }, [coins])
+    
+    // Обновляем AI Trader если запущен
+    if (aiTrader && aiTrader.isActive) {
+      const enabled = coins.filter(c => c.enabled)
+      aiTrader.monitoring = enabled
+    }
+  }, [coins, aiTrader])
 
   const toggleCoin = (symbol) => {
     const index = coins.findIndex(c => c.symbol === symbol)

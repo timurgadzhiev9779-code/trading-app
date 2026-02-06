@@ -29,7 +29,7 @@ export default function HomePage() {
   const manualPositionsLive = useLiveProfit(positions.manual)
 
   return (
-    <div className="text-white p-4 pb-24 max-w-md mx-auto">
+    <div className="text-white p-4 pb-24 max-w-md mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <button onClick={() => setShowMenu(true)}>
@@ -47,7 +47,7 @@ export default function HomePage() {
       </div>
 
       {/* Portfolio */}
-      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800 hover-lift">
         <p className="text-gray-400 text-sm">Общий баланс</p>
         <h1 className="text-4xl font-bold mb-2">
           ${(portfolio?.balance || 0).toLocaleString()}
@@ -66,15 +66,15 @@ export default function HomePage() {
           </div>
           <div className="text-right">
             <p className="text-gray-400">P&L</p>
-            <p className="text-green-500 font-medium">
-              +${portfolio?.pnl || 0} (+{portfolio?.pnlPercent || 0}%)
+            <p className={`font-medium ${(portfolio?.pnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {(portfolio?.pnl || 0) >= 0 ? '+' : ''}${(portfolio?.pnl || 0).toFixed(2)} ({(portfolio?.pnl || 0) >= 0 ? '+' : ''}{(portfolio?.pnlPercent || 0).toFixed(2)}%)
             </p>
           </div>
         </div>
       </div>
 
       {/* AI Status */}
-      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-[#00E5FF]/30">
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-[#00E5FF]/30 hover-glow">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#00E5FF]/10 rounded-lg flex items-center justify-center">
@@ -99,49 +99,112 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* AI Positions */}
-      {aiPositionsLive.length > 0 && (
+      {/* Manual Positions */}
+      {manualPositionsLive.length > 0 && (
         <div className="mb-4">
-          <h2 className="text-lg font-bold mb-3">🤖 AI Позиции</h2>
-          {aiPositionsLive.map((p, i) => (
-            <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold">{p.pair}</p>
-                  <p className="text-xs text-gray-400">{p.type}</p>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-orange-400/10 rounded-lg flex items-center justify-center">
+              👤
+            </div>
+            <h3 className="font-bold">Ручные Позиции</h3>
+          </div>
+
+          {manualPositionsLive.map((p, i) => (
+            <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800 card-entrance hover-lift">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-bold text-lg">{p.pair}</p>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const diff = Date.now() - p.openTime
+                        const mins = Math.floor(diff / 60000)
+                        const hours = Math.floor(mins / 60)
+                        const days = Math.floor(hours / 24)
+                        return days > 0 ? `${days}д` : hours > 0 ? `${hours}ч` : `${mins}м`
+                      })()}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400 space-y-0.5">
+                    <div>Entry: <span className="text-gray-300">${p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                    <div>TP: <span className="text-green-500">${p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-bold ${parseFloat(p.profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {parseFloat(p.profit || 0) >= 0 ? '+' : ''}{formatPrice(p.profit || 0)}
+                  <p className={`text-lg font-bold ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {p.profit >= 0 ? '+' : ''}${p.profit}
                   </p>
-                  <p className={`text-xs ${parseFloat(p.profitPercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {parseFloat(p.profitPercent || 0) >= 0 ? '+' : ''}{parseFloat(p.profitPercent || 0).toFixed(2)}%
+                  <p className={`text-xs ${p.profitPercent >= 0 ? 'text-green-500' : 'text-red-500'} mb-2`}>
+                    {p.profitPercent >= 0 ? '+' : ''}{p.profitPercent}%
                   </p>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center text-xs mt-2">
-                <div className="text-gray-400">
-                  <span>Entry: {formatPrice(p.entry)}</span>
-                  <span className="mx-2">|</span>
-                  <span className="text-white">Now: {formatPrice(p.currentPrice)}</span>
-                </div>
-                <div className="flex gap-2">
-                  {p.analysis && (
-                    <Link 
-                      to="/trade-reason"
-                      state={{ position: p, analysis: p.analysis }}
-                      className="bg-[#00E5FF]/10 text-[#00E5FF] px-3 py-1 rounded text-xs"
-                    >
-                      Почему?
-                    </Link>
-                  )}
                   <button 
-                    onClick={() => setSelectedPosition({ ...p, isAI: true })}
-                    className="bg-gray-800 text-white px-3 py-1 rounded text-xs"
+                    onClick={() => setSelectedPosition({ ...p, isAI: false })}
+                    className="bg-orange-400 text-black px-3 py-1 rounded text-xs font-medium"
                   >
                     Управление
                   </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AI Positions */}
+      {aiPositionsLive.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-[#00E5FF]/10 rounded-lg flex items-center justify-center">
+              🤖
+            </div>
+            <h3 className="font-bold">AI Позиции</h3>
+          </div>
+
+          {aiPositionsLive.map((p, i) => (
+            <div key={i} className="bg-[#1A1A1A] rounded-xl p-3 mb-2 border border-gray-800 card-entrance hover-lift">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-bold text-lg">{p.pair}</p>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const diff = Date.now() - p.openTime
+                        const mins = Math.floor(diff / 60000)
+                        const hours = Math.floor(mins / 60)
+                        const days = Math.floor(hours / 24)
+                        return days > 0 ? `${days}д` : hours > 0 ? `${hours}ч` : `${mins}м`
+                      })()}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400 space-y-0.5">
+                    <div>Entry: <span className="text-gray-300">${p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                    <div>TP: <span className="text-green-500">${p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-lg font-bold ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {p.profit >= 0 ? '+' : ''}${p.profit}
+                  </p>
+                  <p className={`text-xs ${p.profitPercent >= 0 ? 'text-green-500' : 'text-red-500'} mb-2`}>
+                    {p.profitPercent >= 0 ? '+' : ''}{p.profitPercent}%
+                  </p>
+                  <div className="flex gap-1">
+                    {p.analysis && (
+                      <Link 
+                        to="/trade-reason"
+                        state={{ position: p, analysis: p.analysis }}
+                        className="bg-[#00E5FF]/20 text-[#00E5FF] px-2 py-1 rounded text-xs font-medium"
+                      >
+                        Почему?
+                      </Link>
+                    )}
+                    <button 
+                      onClick={() => setSelectedPosition({ ...p, isAI: true })}
+                      className="bg-[#00E5FF] text-black px-3 py-1 rounded text-xs font-medium"
+                    >
+                      Управление
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -163,7 +226,7 @@ export default function HomePage() {
         </div>
       ) : (
         aiSignals.slice(0, 3).map((s, i) => (
-          <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 mb-3 border border-gray-800">
+          <div key={i} className="bg-[#1A1A1A] rounded-xl p-4 mb-3 border border-gray-800 card-entrance hover-lift">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <p className="font-bold text-lg">{s.pair}</p>

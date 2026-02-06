@@ -1,6 +1,8 @@
 import { ArrowLeft, TrendingUp, Target, Award } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTrading } from '../context/TradingContext'
+import PnLChart from '../components/PnLChart'
+import TradingHeatmap from '../components/TradingHeatmap'
 
 export default function StatisticsPage() {
   const { tradeHistory, positions } = useTrading()
@@ -99,6 +101,51 @@ export default function StatisticsPage() {
             ></div>
           </div>
         </div>
+      </div>
+
+      {/* Equity Curve */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+        <h3 className="font-bold mb-3">Equity Curve</h3>
+        {tradeHistory.length > 0 ? (
+          <PnLChart tradeHistory={tradeHistory} initialBalance={10000} />
+        ) : (
+          <div className="h-64 flex items-center justify-center text-gray-400">
+            <p>Нет данных для графика</p>
+          </div>
+        )}
+      </div>
+
+      {/* P&L по периодам */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+        <h3 className="font-bold mb-3">P&L по периодам</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-400">Сегодня</span>
+            <span className={`font-bold ${todayTrades.reduce((s, t) => s + parseFloat(t.profit), 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {todayTrades.reduce((s, t) => s + parseFloat(t.profit), 0) >= 0 ? '+' : ''}
+              ${todayTrades.reduce((s, t) => s + parseFloat(t.profit), 0).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">За неделю</span>
+            <span className={`font-bold ${thisWeek.reduce((s, t) => s + parseFloat(t.profit), 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {thisWeek.reduce((s, t) => s + parseFloat(t.profit), 0) >= 0 ? '+' : ''}
+              ${thisWeek.reduce((s, t) => s + parseFloat(t.profit), 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Heatmap */}
+      <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+        <h3 className="font-bold mb-3">Лучшее время для торговли</h3>
+        {tradeHistory.length >= 10 ? (
+          <TradingHeatmap tradeHistory={tradeHistory} />
+        ) : (
+          <p className="text-gray-400 text-sm text-center py-8">
+            Нужно минимум 10 сделок для heatmap
+          </p>
+        )}
       </div>
 
       {/* AI vs Manual */}
