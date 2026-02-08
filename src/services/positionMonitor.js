@@ -22,7 +22,6 @@ export class PositionMonitor {
         return
       }
 
-      // Проверка TP
       if (currentPrice >= position.tp) {
         const profit = ((currentPrice - position.entry) / position.entry) * position.amount
         this.onClose(position.pair, profit, 'TP HIT', position.isAI)
@@ -30,7 +29,6 @@ export class PositionMonitor {
         return
       }
       
-      // Проверка SL
       if (currentPrice <= position.sl) {
         const loss = ((currentPrice - position.entry) / position.entry) * position.amount
         this.onClose(position.pair, loss, 'SL HIT', position.isAI)

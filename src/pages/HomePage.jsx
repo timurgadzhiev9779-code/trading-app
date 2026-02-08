@@ -18,7 +18,8 @@ export default function HomePage() {
     aiSignals,
     notifications,
     partialClose,
-    updateTrailingStop
+    updateTrailingStop,
+    tradeHistory
   } = useTrading()
   const navigate = useNavigate()
   const [showMenu, setShowMenu] = useState(false)
@@ -126,9 +127,8 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="text-xs text-gray-400 space-y-0.5">
-                    <div>Entry: <span className="text-gray-300">${p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
-                    <div>TP: <span className="text-green-500">${p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
-                  </div>
+                  <div>Entry: <span className="text-gray-300">${p.entry < 10 ? p.entry?.toFixed(4) : p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice < 10 ? p.currentPrice?.toFixed(4) : p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                  <div>TP: <span className="text-green-500">${p.tp < 10 ? p.tp?.toFixed(4) : p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl < 10 ? p.sl?.toFixed(4) : p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>                  </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-lg font-bold ${p.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -177,8 +177,8 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="text-xs text-gray-400 space-y-0.5">
-                    <div>Entry: <span className="text-gray-300">${p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
-                    <div>TP: <span className="text-green-500">${p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                  <div>Entry: <span className="text-gray-300">${p.entry < 10 ? p.entry?.toFixed(4) : p.entry?.toLocaleString()}</span> | Now: <span className="text-white font-bold">${p.currentPrice < 10 ? p.currentPrice?.toFixed(4) : p.currentPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                  <div>TP: <span className="text-green-500">${p.tp < 10 ? p.tp?.toFixed(4) : p.tp?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> | SL: <span className="text-red-500">${p.sl < 10 ? p.sl?.toFixed(4) : p.sl?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -341,6 +341,16 @@ export default function HomePage() {
           onPartialClose={partialClose}
           onTrailingStop={updateTrailingStop}
         />
+      )}
+          {/* Debug Mode */}
+          {import.meta.env.DEV && (
+        <div className="fixed bottom-20 right-4 bg-black/80 p-2 rounded text-xs">
+          <div>Positions AI: {positions.ai.length}</div>
+          <div>Positions Manual: {positions.manual.length}</div>
+          <div>History: {tradeHistory.length}</div>
+          <div>Balance: ${portfolio.balance.toFixed(2)}</div>
+          <div>Available: ${portfolio.available.toFixed(2)}</div>
+        </div>
       )}
     </div>
   )

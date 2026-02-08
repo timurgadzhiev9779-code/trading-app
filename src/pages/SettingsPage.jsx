@@ -95,18 +95,24 @@ export default function SettingsPage() {
         <p className="text-sm text-gray-400">Win rate, прибыль, история</p>
       </Link>
 
-      {/* Reset */}
-      <button 
-        onClick={() => {
-          if (confirm('Сбросить все данные?')) {
-            localStorage.clear()
-            window.location.reload()
-          }
-        }}
-        className="w-full mt-4 bg-red-500/10 border border-red-500/30 text-red-500 py-3 rounded-lg font-medium"
-      >
-        Сбросить все данные
-      </button>
+            {/* Reset */}
+            <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+        <h3 className="font-bold text-red-500 mb-2">⚠️ Опасная зона</h3>
+        <p className="text-sm text-gray-400 mb-3">
+          Удалит все позиции, историю и вернёт баланс к $10,000
+        </p>
+        <button 
+          onClick={() => {
+            if (confirm('Сбросить ВСЕ данные? Это действие нельзя отменить!')) {
+              localStorage.clear()
+              window.location.href = '/'
+            }
+          }}
+          className="w-full bg-red-500 text-white py-3 rounded-lg font-medium"
+        >
+          🗑️ Полный сброс
+        </button>
+      </div>
     </div>
   )
 }

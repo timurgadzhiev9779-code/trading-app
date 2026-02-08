@@ -22,7 +22,8 @@ export default function TradePage() {
     { symbol: 'LINK', name: 'Chainlink' },
     { symbol: 'MATIC', name: 'Polygon' },
     { symbol: 'DOT', name: 'Polkadot' },
-    { symbol: 'CHESS', name: 'Chess' },
+    { symbol: 'SUI', name: 'Sui' },
+    { symbol: 'ARB', name: 'Arb' },
     { symbol: 'UNI', name: 'Uniswap' }
   ]
 
@@ -106,7 +107,7 @@ export default function TradePage() {
             <p className="font-bold text-lg">{selectedCoin}/USDT</p>
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           </div>
-          <p className="text-sm text-gray-400">${currentPrice.toLocaleString()}</p>
+          <p className="text-sm text-gray-400">${currentPrice < 10 ? currentPrice.toFixed(4) : currentPrice.toLocaleString()}</p>
         </div>
       </div>
 
@@ -167,8 +168,9 @@ export default function TradePage() {
           </div>
           <input
             type="range"
-            min="1"
+            min="0.1"
             max="10"
+            step="0.1"
             value={tpPercent}
             onChange={(e) => setTpPercent(Number(e.target.value))}
             className="w-full"
@@ -182,8 +184,9 @@ export default function TradePage() {
           </div>
           <input
             type="range"
-            min="1"
+            min="0.1"
             max="5"
+            step="0.1"
             value={slPercent}
             onChange={(e) => setSlPercent(Number(e.target.value))}
             className="w-full"

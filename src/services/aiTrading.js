@@ -90,15 +90,23 @@ export class AITrader {
         
         // 🔥 ИСПОЛЬЗУЕМ НАСТРОЙКИ ИЗ ПОЛЗУНКА
         const highQualitySignal = 
-          analysis.confidence > (pair.minConfidence || 75) && // Из ползунка!
-          advancedCheck.confidence > 60 &&
+        analysis.confidence > (pair.minConfidence || 75) && // Из ползунка!
+        advancedCheck.confidence > 45 &&
           mtf.alignment === 'ALIGNED' &&
           analysis.trend.signal === 'BULLISH' &&
           analysis.rsi.value > 30 && analysis.rsi.value < 65 &&
           analysis.macd.signal === 'BULLISH' &&
           analysis.volume.signal !== 'LOW'
         
-        if (highQualitySignal) {
+          if (highQualitySignal) {
+            console.log(`✅ СИГНАЛ! ${pair.symbol}:`, {
+              confidence: analysis.confidence,
+              minRequired: pair.minConfidence,
+              alignment: mtf.alignment,
+              trend: analysis.trend.signal,
+              rsi: analysis.rsi.value,
+              macd: analysis.macd.signal
+            })
           // 🆕 Рассчитываем размер позиции с Kelly
           const avgConfidence = Math.round((analysis.confidence + advancedCheck.confidence) / 2)
           let positionSize = this.riskManager.calculatePositionSize(avgConfidence, analysis)
@@ -125,13 +133,16 @@ export class AITrader {
             continue
           }
             
+          const entry = analysis.price
+          const atr = parseFloat(analysis.volatility.atr) || entry * 0.02
+          
           const signal = {
             pair: pair.symbol,
             confidence: avgConfidence,
             direction: 'LONG',
-            entry: analysis.price,
-            tp: analysis.price + (parseFloat(analysis.fibonacci.fib236) - analysis.price) * params.takeProfitMultiplier,
-            sl: analysis.price - (analysis.price - parseFloat(analysis.support)) * params.stopLossMultiplier,
+            entry: entry,
+            tp: entry + atr * 1.5 * params.takeProfitMultiplier,
+            sl: entry - atr * params.stopLossMultiplier,
             amount: positionSize, // 🆕 Динамический размер
             context: advancedCheck.context,
             analysis: advancedCheck,
@@ -142,10 +153,16 @@ export class AITrader {
           this.recentSignals.set(pair.symbol, Date.now())
             
           // Торговать только при высочайшем качестве
-          if (analysis.confidence > 85 && advancedCheck.confidence > 80) {
+          if (analysis.confidence > 85 && advancedCheck.confidence > 70) {
             this.onTrade(signal)
             this.recentTrades.set(pair.symbol, Date.now())
           }
+        } else {
+          console.log(`❌ ${pair.symbol} не прошёл:`, {
+            confidence: analysis.confidence,
+            required: pair.minConfidence,
+            passed: analysis.confidence > (pair.minConfidence || 75)
+          })
         }
       } catch (err) {
         console.error('AI analysis error:', err)
@@ -213,22 +230,26 @@ export class ManualMonitor {
         const analysis = mtf.current
         const advancedCheck = await this.advancedAnalyzer.shouldEnterTrade(symbol, analysis)
         
-        // Для ручного мониторинга - чуть мягче критерии, но всё равно качественно
+        console.log(`📊 Manual ${pair.symbol} - Conf: ${analysis.confidence}, Min: ${pair.minConfidence}`)
+        
+        // 🔥 ИСПОЛЬЗУЕМ ПОЛЗУНОК
         const goodSignal = 
-          analysis.confidence > 75 &&
-          advancedCheck.confidence > 70 &&
-          analysis.trend.signal === 'BULLISH' &&
-          analysis.rsi.value > 35 && analysis.rsi.value < 65 &&
-          advancedCheck.shouldEnter
+        analysis.confidence > (pair.minConfidence || 70) && // Из настроек!
+        advancedCheck.confidence > 50 &&
+        analysis.trend.signal === 'BULLISH' &&
+        analysis.rsi.value > 35 && analysis.rsi.value < 65
         
         if (goodSignal) {
+          const entry = analysis.price
+          const atr = parseFloat(analysis.volatility.atr) || entry * 0.02
+          
           this.onSignal({
             pair: pair.symbol,
             confidence: Math.round((analysis.confidence + advancedCheck.confidence) / 2),
             direction: analysis.trend.signal === 'BULLISH' ? 'LONG' : 'SHORT',
-            entry: analysis.price,
-            tp: parseFloat(analysis.fibonacci.fib236),
-            sl: parseFloat(analysis.support),
+            entry: entry,
+            tp: entry + atr * 1.5,
+            sl: entry - atr,
             manual: true,
             rsi: analysis.rsi.value,
             macd: analysis.macd.signal,

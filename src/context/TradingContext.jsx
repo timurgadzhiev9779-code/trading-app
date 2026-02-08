@@ -61,6 +61,14 @@ export function TradingProvider({ children }) {
     setToast({ message, type })
   }
 
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('/notification.mp3')
+      audio.volume = 0.5
+      audio.play().catch(() => {})
+    } catch (err) {}
+  }
+
   const addNotification = (type, title, message) => {
     const notif = {
       id: Date.now(),
@@ -97,6 +105,17 @@ export function TradingProvider({ children }) {
         addNotification('signal', 'Новый сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
       })
   )
+
+  useEffect(() => {
+    const savedManual = localStorage.getItem('manualMonitoring')
+    if (savedManual && manualMonitor) {
+      const coins = JSON.parse(savedManual)
+      const enabled = coins.filter(c => c.enabled)
+      if (enabled.length > 0) {
+        manualMonitor.start(enabled)
+      }
+    }
+  }, [])
 
   const monitorCallbackRef = React.useRef()
   
@@ -213,6 +232,7 @@ export function TradingProvider({ children }) {
             (signal) => {
               setAiSignals(prev => [signal, ...prev].slice(0, 5))
               addNotification('signal', 'Новый AI сигнал', `${signal.pair} ${signal.direction} (${signal.confidence}%)`)
+              playNotificationSound()
             },
             (signal) => {
               if (aiEnabled && portfolio.available > 100) {
