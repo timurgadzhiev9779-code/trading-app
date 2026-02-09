@@ -17,6 +17,9 @@ import SettingsPage from './pages/SettingsPage'
 import TradeReasonPage from './pages/TradeReasonPage'
 import BacktestPage from './pages/BacktestPage'
 import SignalHistoryPage from './pages/SignalHistoryPage'
+import MLTrainingPage from './pages/MLTrainingPage'
+import OptimizationPage from './pages/OptimizationPage'
+import LiveTestingPage from './pages/LiveTestingPage'
 
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -56,6 +59,9 @@ export default function App() {
         <Route path="trade-reason" element={<TradeReasonPage />} />
         <Route path="backtest" element={<BacktestPage />} />
         <Route path="signal-history" element={<SignalHistoryPage />} />
+        <Route path="ml-training" element={<MLTrainingPage />} />
+        <Route path="optimization" element={<OptimizationPage />} />
+        <Route path="live-testing" element={<LiveTestingPage />} />
       </Route>
     </Routes>
   )

@@ -95,6 +95,38 @@ export default function SettingsPage() {
         <p className="text-sm text-gray-400">Win rate, прибыль, история</p>
       </Link>
 
+
+      {/* ML Training */}
+      <Link 
+        to="/ml-training"
+        className="block bg-[#1A1A1A] rounded-xl p-4 mt-4 border border-gray-800 hover:bg-[#2A2A2A] transition"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#00E5FF]/10 rounded-lg flex items-center justify-center">
+            🧠
+          </div>
+          <div>
+            <p className="font-bold">ML Обучение</p>
+            <p className="text-sm text-gray-400">Нейросеть для предсказаний</p>
+          </div>
+        </div>
+      </Link>
+      
+      {/* Self Optimization */}
+      <Link 
+        to="/optimization"
+        className="block bg-[#1A1A1A] rounded-xl p-4 mt-4 border border-gray-800 hover:bg-[#2A2A2A] transition"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#00E5FF]/10 rounded-lg flex items-center justify-center">
+            🧬
+          </div>
+          <div>
+            <p className="font-bold">Самооптимизация</p>
+            <p className="text-sm text-gray-400">AI улучшает сам себя</p>
+          </div>
+        </div>
+      </Link>
             {/* Reset */}
             <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
         <h3 className="font-bold text-red-500 mb-2">⚠️ Опасная зона</h3>

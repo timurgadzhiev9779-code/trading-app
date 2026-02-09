@@ -6,6 +6,11 @@ export class TechnicalAnalyzer {
   constructor() {
     this.mlPredictor = new MLPredictor()
     this.patternRecognizer = new PatternRecognizer()
+    this.initML()
+  }
+
+  async initML() {
+    await this.mlPredictor.loadModel()
   }
 
   async analyze(symbol, interval = '1h') {
@@ -69,8 +74,19 @@ export class TechnicalAnalyzer {
     
     const currentPrice = closes[closes.length - 1]
 
-    // ML PREDICTION
-    const mlPrediction = await this.mlPredictor.predict(candles, {
+    // ML PREDICTION С ПРОВЕРКОЙ
+    let mtfPrediction = null
+    
+    try {
+      if (typeof this.mlPredictor.predictMultiTimeframe === 'function') {
+        mtfPrediction = await this.mlPredictor.predictMultiTimeframe(symbol)
+      }
+    } catch (err) {
+      console.log('⚠️ Multi-TF недоступна:', err.message)
+    }
+    
+    // Если Multi-TF не сработала - используем старый метод
+    const mlPrediction = mtfPrediction || await this.mlPredictor.predict(candles, {
       rsi: { value: currentRSI },
       macd: currentMACD,
       adx: { value: currentADX.adx },
@@ -80,8 +96,13 @@ export class TechnicalAnalyzer {
       bb: currentBB,
       volume: {
         signal: currentVolume > avgVolume * 1.5 ? 'HIGH' : currentVolume > avgVolume ? 'ABOVE_AVG' : 'LOW'
+      },
+      volatility: {
+        atr: currentATR
       }
     })
+    
+    console.log(`🧠 ML${mlPrediction.multiTF ? ' (Multi-TF)' : ''}: ${symbol} → ${mlPrediction.direction} (${mlPrediction.confidence}%)`)
 
     // PATTERN RECOGNITION
     const candlePatterns = this.patternRecognizer.recognizeCandlePatterns(candles)
@@ -139,7 +160,8 @@ export class TechnicalAnalyzer {
       mlPrediction: {
         direction: mlPrediction.direction,
         confidence: mlPrediction.confidence,
-        probability: mlPrediction.probability
+        probability: mlPrediction.probability,
+        multiTF: mlPrediction.multiTF || false
       },
       
       // ПАТТЕРНЫ

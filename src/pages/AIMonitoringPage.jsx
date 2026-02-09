@@ -17,7 +17,7 @@ export default function AIMonitoringPage() {
       { symbol: 'SOL/USDT', timeframe: '4h', enabled: true, minConfidence: 75 },
       { symbol: 'AVAX/USDT', timeframe: '4h', enabled: false, minConfidence: 70 },
       { symbol: 'LINK/USDT', timeframe: '1h', enabled: false, minConfidence: 70 },
-      { symbol: 'MATIC/USDT', timeframe: '4h', enabled: false, minConfidence: 70 },
+      { symbol: 'SUI/USDT', timeframe: '4h', enabled: false, minConfidence: 70 },
       { symbol: 'DOT/USDT', timeframe: '4h', enabled: false, minConfidence: 70 },
       { symbol: 'UNI/USDT', timeframe: '1h', enabled: false, minConfidence: 70 },
     ]

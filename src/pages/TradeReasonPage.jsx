@@ -90,6 +90,12 @@ export default function TradeReasonPage() {
             title="Market Sentiment"
             description={`${context.sentiment?.signal || 'N/A'} (Score: ${context.sentiment?.composite || 0})`}
           />
+          
+          <CheckItem 
+            passed={checks.advancedOK}
+            title="Advanced Metrics"
+            description={`Bullish Score: ${context.advanced?.bullishScore || 0}/${context.advanced?.maxScore || 7}`}
+          />
         </div>
       </div>
 
@@ -108,7 +114,57 @@ export default function TradeReasonPage() {
           )}
         </div>
       )}
+      {/* Advanced Metrics */}
+      {context.advanced && (
+        <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">
+          <h3 className="font-bold mb-3">🔬 Advanced Metrics</h3>
+          
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Order Flow</span>
+              <span className={`font-medium ${
+                context.advanced.orderFlow.signal === 'BULLISH' ? 'text-green-500' :
+                context.advanced.orderFlow.signal === 'BEARISH' ? 'text-red-500' : 'text-gray-400'
+              }`}>
+                {context.advanced.orderFlow.signal}
+              </span>
+            </div>
 
+            <div className="flex justify-between">
+              <span className="text-gray-400">Funding Rate</span>
+              <span className="font-medium text-white">
+                {context.advanced.funding.rate}% - {context.advanced.funding.signal}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-400">Open Interest</span>
+              <span className="font-medium text-[#00E5FF]">
+                {context.advanced.openInterest.signal} ({context.advanced.openInterest.change}%)
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-400">Exchange Flows</span>
+              <span className={`font-medium ${
+                context.advanced.flows.interpretation === 'BULLISH' ? 'text-green-500' :
+                context.advanced.flows.interpretation === 'BEARISH' ? 'text-red-500' : 'text-gray-400'
+              }`}>
+                {context.advanced.flows.signal}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-gray-800">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Bullish Score</span>
+              <span className="text-[#00E5FF] font-bold">
+                {context.advanced.bullishScore}/{context.advanced.maxScore}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Sentiment Breakdown */}
       {context.sentiment && (
         <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800">

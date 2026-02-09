@@ -152,7 +152,22 @@ export default function CoinDetailPage() {
             onClick={() => setShowML(!showML)}
             className="w-full p-4 flex justify-between items-center"
           >
-            <h3 className="font-bold">🤖 ML Предсказание</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold">🧠 ML Прогноз</h3>
+              <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-500">
+                Обучена
+              </span>
+              {analysis.current.mlPrediction.multiTF && (
+                <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-500">
+                  Multi-TF
+                </span>
+              )}
+              {analysis.current.mlPrediction.ensemble && (
+                <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-500">
+                  Ensemble
+                </span>
+              )}
+            </div>
             <span className="text-gray-400">{showML ? '▲' : '▼'}</span>
           </button>
           
@@ -167,6 +182,30 @@ export default function CoinDetailPage() {
                   {analysis.current.mlPrediction.direction}
                 </span>
               </div>
+              
+              {analysis.current.mlPrediction.multiTF && (
+                <div className="mb-3 text-xs text-gray-400">
+                  Анализ: 15m, 1h, 4h, 1D, 1W → Комплексное решение
+                </div>
+              )}
+              
+              {/* Ensemble Voting */}
+              {analysis.current.mlPrediction.ensemble && analysis.current.mlPrediction.votes && (
+                <div className="mb-3">
+                  <p className="text-xs text-gray-400 mb-2">Голосование моделей:</p>
+                  <div className="grid grid-cols-5 gap-1 text-xs">
+                    {Object.entries(analysis.current.mlPrediction.votes).map(([model, probs]) => (
+                      <div key={model} className="bg-[#0A0A0A] p-2 rounded text-center">
+                        <p className="text-gray-500 mb-1 uppercase text-[10px]">{model}</p>
+                        <p className={`font-bold ${probs[2] > 0.5 ? 'text-green-500' : probs[0] > 0.5 ? 'text-red-500' : 'text-gray-400'}`}>
+                          {(probs[2] * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="bg-[#0A0A0A] p-2 rounded text-center">
                   <p className="text-gray-400 mb-1">Up</p>

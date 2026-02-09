@@ -4,6 +4,8 @@ import { AITrader, ManualMonitor } from '../services/aiTrading'
 import { PositionMonitor } from '../services/positionMonitor'
 import Toast from '../components/Toast'
 import STORAGE_KEYS, { saveToStorage, loadFromStorage } from '../utils/storage'
+import { PortfolioManager } from '../services/portfolioManager'
+import { ReportGenerator } from '../services/reportGenerator'
 
 const TradingContext = createContext()
 
@@ -31,6 +33,8 @@ export function TradingProvider({ children }) {
   const [aiTrader, setAiTrader] = useState(null)
   const [aiSignals, setAiSignals] = useState([])
   const [toast, setToast] = useState(null)
+  const [portfolioManager] = useState(() => new PortfolioManager())
+  const [reportGen] = useState(() => new ReportGenerator())
 
   // Сохраняем при каждом изменении
   useEffect(() => {
@@ -56,6 +60,29 @@ export function TradingProvider({ children }) {
   useEffect(() => {
     saveToStorage('signalHistory', signalHistory)
   }, [signalHistory])
+
+  // Автоматическая генерация ежедневных отчётов
+  useEffect(() => {
+    const checkDailyReport = () => {
+      const lastReport = localStorage.getItem('last-daily-report')
+      const today = new Date().toDateString()
+      
+      if (lastReport !== today && tradeHistory.length > 0) {
+        const report = reportGen.generateDailyReport(tradeHistory, portfolio)
+        reportGen.saveReport(report, 'daily')
+        localStorage.setItem('last-daily-report', today)
+        
+        // Показываем уведомление
+        addNotification('alert', 'Дневной отчёт готов', 
+          `${report.trades} сделок, ${report.winRate}% винрейт, ${parseFloat(report.profit) >= 0 ? '+' : ''}$${report.profit}`)
+      }
+    }
+
+    const interval = setInterval(checkDailyReport, 60000)
+    checkDailyReport()
+    
+    return () => clearInterval(interval)
+  }, [tradeHistory, portfolio])
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
@@ -178,14 +205,38 @@ export function TradingProvider({ children }) {
       // Открыть позицию
       const openPosition = (trade) => {
         if (trade.amount < 10) {
-      showToast('Минимум $10', 'error')
-      return false
-    }
+          showToast('Минимум $10', 'error')
+          return false
+        }
 
-    if (trade.amount > portfolio.available) {
-      showToast('Недостаточно средств', 'error')
-      return false
-    }
+        if (trade.amount > portfolio.available) {
+          showToast('Недостаточно средств', 'error')
+          return false
+        }
+
+        // 🆕 ПРОВЕРКА СЕКТОРОВ
+        const sectorCheck = portfolioManager.checkSectorLimits(
+          trade.pair,
+          trade.amount,
+          [...positions.ai, ...positions.manual],
+          portfolio.balance
+        )
+        
+        if (!sectorCheck.allowed) {
+          showToast(sectorCheck.reason, 'error')
+          return false
+        }
+        
+        // 🆕 ПРОВЕРКА КОРРЕЛЯЦИИ
+        const correlationCheck = portfolioManager.checkCorrelation(
+          trade.pair,
+          [...positions.ai, ...positions.manual]
+        )
+        
+        if (!correlationCheck.allowed) {
+          showToast(correlationCheck.reason, 'error')
+          return false
+        }
 
     const newPosition = {
       pair: trade.pair,

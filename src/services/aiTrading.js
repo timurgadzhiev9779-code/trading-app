@@ -2,6 +2,7 @@ import { TechnicalAnalyzer } from './technicalAnalysis'
 import { AdvancedAnalyzer } from './advancedAnalysis'
 import { RiskManager } from './riskManagement'
 import { MarketRegimeDetector } from './marketRegime'
+import { TradingStrategies } from './tradingStrategies'
 
 export class AITrader {
   constructor(onSignal, onTrade, portfolio, tradeHistory) {
@@ -20,6 +21,7 @@ export class AITrader {
     this.currentRegime = null
     this.cooldown = 3600000 // 1 час
     this.signalCooldown = 1800000 // 30 мин для сигналов
+    this.strategies = new TradingStrategies()
   }
 
   updateRiskManager(portfolio, tradeHistory) {
@@ -84,33 +86,46 @@ export class AITrader {
         
         // Расширенный анализ
         const advancedCheck = await this.advancedAnalyzer.shouldEnterTrade(symbol, analysis)
-        console.log(`📊 ${pair.symbol} Advanced:`, advancedCheck)
         
-        console.log(`📊 ${pair.symbol} - Conf: ${analysis.confidence}, Min: ${pair.minConfidence}`)
+        // 🆕 ВЫБИРАЕМ ЛУЧШУЮ СТРАТЕГИЮ
+        const strategyResult = this.strategies.selectBestStrategy(analysis)
         
-        // 🔥 ИСПОЛЬЗУЕМ НАСТРОЙКИ ИЗ ПОЛЗУНКА
+        console.log(`🎯 ${pair.symbol}:`, {
+          strategy: strategyResult.primary.strategy,
+          confidence: strategyResult.combinedConfidence,
+          signal: strategyResult.primary.signal,
+          consensus: strategyResult.consensus
+        })
+        
+        // УСЛОВИЯ С УЧЁТОМ СТРАТЕГИИ + MULTI-TF
         const highQualitySignal = 
-        analysis.confidence > (pair.minConfidence || 75) && // Из ползунка!
-        advancedCheck.confidence > 45 &&
-          mtf.alignment === 'ALIGNED' &&
-          analysis.trend.signal === 'BULLISH' &&
-          analysis.rsi.value > 30 && analysis.rsi.value < 65 &&
-          analysis.macd.signal === 'BULLISH' &&
-          analysis.volume.signal !== 'LOW'
+          analysis.confidence > (pair.minConfidence || 70) &&
+          advancedCheck.confidence > 60 &&
+          strategyResult.primary.signal !== 'NEUTRAL' &&
+          strategyResult.combinedConfidence > 70 &&
+          analysis.mlPrediction.direction === 'UP' &&
+          analysis.mlPrediction.confidence > (analysis.mlPrediction.multiTF ? 65 : 55) &&
+          (analysis.mlPrediction.multiTF ? analysis.mlPrediction.probability.up > 0.6 : true)
+
+        console.log(`🤖 ${pair.symbol}:`, {
+          tech: analysis.confidence,
+          ml: analysis.mlPrediction.confidence,
+          mlType: analysis.mlPrediction.multiTF ? 'Multi-TF' : 'Single',
+          mlDirection: analysis.mlPrediction.direction,
+          strategy: strategyResult.primary.strategy,
+          combined: strategyResult.combinedConfidence
+        })
         
           if (highQualitySignal) {
             console.log(`✅ СИГНАЛ! ${pair.symbol}:`, {
-              confidence: analysis.confidence,
-              minRequired: pair.minConfidence,
-              alignment: mtf.alignment,
-              trend: analysis.trend.signal,
-              rsi: analysis.rsi.value,
-              macd: analysis.macd.signal
+              strategy: strategyResult.primary.strategy,
+              confidence: strategyResult.combinedConfidence,
+              consensus: strategyResult.consensus
             })
           // 🆕 Рассчитываем размер позиции с Kelly
-          const avgConfidence = Math.round((analysis.confidence + advancedCheck.confidence) / 2)
+          const avgConfidence = strategyResult.combinedConfidence
           let positionSize = this.riskManager.calculatePositionSize(avgConfidence, analysis)
-          positionSize *= params.positionSizeMultiplier
+          positionSize *= strategyResult.primary.sizeMultiplier
             
           // 🆕 Проверка корреляции
           const correlationCheck = this.riskManager.checkCorrelation(
@@ -141,19 +156,20 @@ export class AITrader {
             confidence: avgConfidence,
             direction: 'LONG',
             entry: entry,
-            tp: entry + atr * 1.5 * params.takeProfitMultiplier,
-            sl: entry - atr * params.stopLossMultiplier,
-            amount: positionSize, // 🆕 Динамический размер
+            tp: entry + atr * strategyResult.primary.tpMultiplier,
+            sl: entry - atr * strategyResult.primary.slMultiplier,
+            amount: positionSize,
             context: advancedCheck.context,
             analysis: advancedCheck,
-            regime: this.currentRegime.regime
+            regime: this.currentRegime.regime,
+            strategy: strategyResult.primary.strategy
           }
             
           this.onSignal(signal)
           this.recentSignals.set(pair.symbol, Date.now())
             
           // Торговать только при высочайшем качестве
-          if (analysis.confidence > 85 && advancedCheck.confidence > 70) {
+          if (avgConfidence > 80 && strategyResult.consensus) {
             this.onTrade(signal)
             this.recentTrades.set(pair.symbol, Date.now())
           }

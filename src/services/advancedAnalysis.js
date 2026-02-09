@@ -1,8 +1,10 @@
 import { SentimentAnalyzer } from './sentimentAnalysis'
+import { AdvancedMetrics } from './advancedMetrics'
 
 export class AdvancedAnalyzer {
   constructor() {
     this.sentimentAnalyzer = new SentimentAnalyzer()
+    this.advancedMetrics = new AdvancedMetrics()
   }
   
   // Fear & Greed Index
@@ -152,14 +154,15 @@ export class AdvancedAnalyzer {
 
      // Расширенный анализ с НОВЫМИ факторами
   async shouldEnterTrade(symbol, technicalAnalysis) {
-    const [btcTrend, btcDom, fearGreed, correlation, liquidity, volatility, sentiment] = await Promise.all([
+    const [btcTrend, btcDom, fearGreed, correlation, liquidity, volatility, sentiment, advanced] = await Promise.all([
       this.getBTCTrend(),
       this.getBTCDominance(),
       this.getFearGreedIndex(),
       this.checkBTCCorrelation(symbol),
       this.checkLiquidity(symbol),
       this.checkVolatility(symbol),
-      this.sentimentAnalyzer.getComprehensiveSentiment(symbol) // 🆕
+      this.sentimentAnalyzer.getComprehensiveSentiment(symbol),
+      this.advancedMetrics.comprehensiveAnalysis(symbol)
     ])
     
     const session = this.checkTradingSession()
@@ -173,14 +176,15 @@ export class AdvancedAnalyzer {
       liquidityOK: liquidity.liquid,
       volatilityOK: volatility.suitable,
       sessionOK: session.active !== 'LOW',
-      sentimentOK: sentiment.composite > 45 && sentiment.signal !== 'BEARISH' // 🆕
+      sentimentOK: sentiment.composite > 45 && sentiment.signal !== 'BEARISH',
+      advancedOK: advanced.bullishScore >= 4
     }
 
     const score = Object.values(checks).filter(Boolean).length
     const maxScore = Object.keys(checks).length
 
     return {
-      shouldEnter: score >= 7, // 7 из 9 (77%)
+      shouldEnter: score >= 8, // 8 из 10 (80%)
       score: score,
       maxScore: maxScore,
       confidence: Math.round((score / maxScore) * 100),
@@ -193,7 +197,8 @@ export class AdvancedAnalyzer {
         liquidity,
         volatility,
         session,
-        sentiment // 🆕
+        sentiment,
+        advanced
       }
     }
   }

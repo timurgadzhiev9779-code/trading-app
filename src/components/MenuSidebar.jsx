@@ -1,4 +1,4 @@
-import { X, Settings, BarChart3, History, HelpCircle } from 'lucide-react'
+import { X, Settings, BarChart3, History, HelpCircle, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function MenuSidebar({ onClose }) {
@@ -32,6 +32,18 @@ export default function MenuSidebar({ onClose }) {
             <div>
               <p className="font-medium text-white">История</p>
               <p className="text-xs text-gray-400">Закрытые сделки</p>
+            </div>
+          </Link>
+
+          <Link 
+            to="/live-testing" 
+            onClick={onClose}
+            className="flex items-center gap-3 bg-[#1A1A1A] p-4 rounded-lg border border-[#00E5FF]/30"
+          >
+            <Activity className="text-green-500" size={20} />
+            <div>
+              <p className="font-medium text-white">Live Testing</p>
+              <p className="text-xs text-gray-400">AI производительность</p>
             </div>
           </Link>
 
