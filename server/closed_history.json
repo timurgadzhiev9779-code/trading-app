@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1770680866630,
+    "pair": "AVAX/USDT",
+    "type": "LONG",
+    "entry": 9.07,
+    "exit": 9.06,
+    "amount": 100,
+    "profit": -0.11,
+    "profitPercent": -0.11,
+    "openTime": 1770680800270,
+    "closeTime": 1770680838065,
+    "reason": "SL",
+    "isAI": false
+  },
+  {
+    "id": 1770681088443,
+    "pair": "SUI/USDT",
+    "type": "LONG",
+    "entry": 0.9631,
+    "exit": 0.9621,
+    "amount": 100,
+    "profit": -0.1,
+    "profitPercent": -0.1,
+    "openTime": 1770681077380,
+    "closeTime": 1770681240077,
+    "reason": "SL",
+    "isAI": false
+  },
+  {
+    "id": 1770681543139,
+    "pair": "UNI/USDT",
+    "type": "LONG",
+    "entry": 3.493,
+    "exit": 3.497,
+    "amount": 100,
+    "profit": 0.11,
+    "profitPercent": 0.11,
+    "openTime": 1770681534574,
+    "closeTime": 1770681612265,
+    "reason": "TP",
+    "isAI": false
+  },
+  {
+    "id": 1770681543139,
+    "pair": "UNI/USDT",
+    "type": "LONG",
+    "entry": 3.493,
+    "exit": 3.497,
+    "amount": 100,
+    "profit": 0.11,
+    "profitPercent": 0.11,
+    "openTime": 1770681534574,
+    "closeTime": 1770681691998,
+    "reason": "TP",
+    "isAI": false
+  },
+  {
+    "id": 1770682109954,
+    "pair": "AVAX/USDT",
+    "type": "LONG",
+    "entry": 9.04,
+    "exit": 9.03,
+    "amount": 100,
+    "profit": -0.11,
+    "profitPercent": -0.11,
+    "openTime": 1770682107287,
+    "closeTime": 1770682149408,
+    "reason": "SL",
+    "isAI": false
+  }
+]

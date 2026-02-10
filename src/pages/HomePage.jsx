@@ -19,7 +19,8 @@ export default function HomePage() {
     notifications,
     partialClose,
     updateTrailingStop,
-    tradeHistory
+    tradeHistory,
+    backendConnected
   } = useTrading()
   const navigate = useNavigate()
   const [showMenu, setShowMenu] = useState(false)
@@ -47,11 +48,43 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* Backend Status - КОМПАКТНЫЙ */}
+      <div className={`rounded-xl p-3 mb-4 border flex items-center gap-3 ${
+        backendConnected 
+          ? 'bg-green-500/5 border-green-500/20' 
+          : 'bg-red-500/5 border-red-500/20'
+      }`}>
+        {/* Индикатор */}
+        <div className="relative">
+          <div className={`w-3 h-3 rounded-full ${
+            backendConnected ? 'bg-green-500' : 'bg-red-500'
+          }`}></div>
+          {backendConnected && (
+            <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-500 animate-ping"></div>
+          )}
+        </div>
+        
+        {/* Текст */}
+        <div className="flex-1">
+          <p className="text-sm font-medium">
+            {backendConnected ? 'Мониторинг 24/7' : 'Офлайн'}
+          </p>
+          <p className="text-xs text-gray-400">
+            {backendConnected ? 'TP/SL работают автоматически' : 'Backend не подключен'}
+          </p>
+        </div>
+        
+        {/* Ссылка на статус */}
+        <Link to="/backend-status" className="text-xs text-[#00E5FF]">
+          Статус →
+        </Link>
+      </div>
+
       {/* Portfolio */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 mb-4 border border-gray-800 hover-lift">
         <p className="text-gray-400 text-sm">Общий баланс</p>
         <h1 className="text-4xl font-bold mb-2">
-          ${(portfolio?.balance || 0).toLocaleString()}
+          ${(portfolio?.balance || 0).toFixed(2)}
         </h1>
 
         <div className="h-16 mb-3 flex items-end gap-1">
@@ -63,7 +96,7 @@ export default function HomePage() {
         <div className="flex justify-between text-sm">
           <div>
             <p className="text-gray-400">Доступно</p>
-            <p className="font-medium">${(portfolio?.available || 0).toLocaleString()}</p>
+            <p className="font-medium">${(portfolio?.available || 0).toFixed(2)}</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400">P&L</p>

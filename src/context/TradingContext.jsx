@@ -6,6 +6,7 @@ import Toast from '../components/Toast'
 import STORAGE_KEYS, { saveToStorage, loadFromStorage } from '../utils/storage'
 import { PortfolioManager } from '../services/portfolioManager'
 import { ReportGenerator } from '../services/reportGenerator'
+import { BackendConnection } from '../services/backendConnection'
 
 const TradingContext = createContext()
 
@@ -35,6 +36,8 @@ export function TradingProvider({ children }) {
   const [toast, setToast] = useState(null)
   const [portfolioManager] = useState(() => new PortfolioManager())
   const [reportGen] = useState(() => new ReportGenerator())
+  const [backend] = useState(() => new BackendConnection())
+  const [backendConnected, setBackendConnected] = useState(false)
 
   // Сохраняем при каждом изменении
   useEffect(() => {
@@ -83,6 +86,196 @@ export function TradingProvider({ children }) {
     
     return () => clearInterval(interval)
   }, [tradeHistory, portfolio])
+
+  // Подключение к backend
+  useEffect(() => {
+    backend.onConnect(async () => {
+      console.log('✅ Backend подключен')
+      setBackendConnected(true)
+
+      // 🔥 ОСТАНАВЛИВАЕМ ВСЕ ЛОКАЛЬНЫЕ МОНИТОРЫ
+      console.log('🛑 Останавливаем локальные мониторы')
+      monitor.stopAll()
+
+      try {
+        // 1. ПОЛУЧАЕМ ИСТОРИЮ ЗАКРЫТЫХ С BACKEND
+        const lastSync = localStorage.getItem('last-history-sync') || '0'
+        const historyRes = await fetch(`${backend.apiUrl}/api/closed-history?since=${lastSync}`)
+        const historyData = await historyRes.json()
+
+        console.log(`📜 Получено ${historyData.history.length} закрытых позиций с backend`)
+
+        if (historyData.history.length > 0) {
+          const existingKeys = new Set(tradeHistory.map(t => `${t.pair}-${t.closeTime}`))
+
+          const newHistory = historyData.history
+            .filter(h => !existingKeys.has(`${h.pair}-${h.closeTime}`))
+            .map(h => ({
+              pair: h.pair,
+              type: h.type || 'LONG',
+              entry: h.entry,
+              exit: h.exit,
+              amount: h.amount,
+              profit: h.profit,
+              profitPercent: h.profitPercent,
+              openTime: h.openTime,
+              closeTime: h.closeTime,
+              time: new Date(h.closeTime).toLocaleString('ru-RU'),
+              isAI: h.isAI || false,
+              strategy: 'Manual'
+            }))
+
+          if (newHistory.length > 0) {
+            console.log(`➕ Добавляем ${newHistory.length} сделок в историю`)
+
+            setTradeHistory(prev => [...newHistory, ...prev])
+
+            const totalProfit = newHistory.reduce((sum, h) => sum + h.profit, 0)
+            const totalReturn = newHistory.reduce((sum, h) => sum + h.amount + h.profit, 0)
+
+            setPortfolio(prev => ({
+              ...prev,
+              balance: prev.balance + totalProfit,
+              available: prev.available + totalReturn,
+              pnl: prev.pnl + totalProfit
+            }))
+
+            newHistory.forEach(h => {
+              addNotification(
+                'trade',
+                h.profit >= 0 ? '🎯 Take Profit' : '🛡️ Stop Loss',
+                `${h.pair}: ${h.profit >= 0 ? '+' : ''}$${h.profit.toFixed(2)} (${h.profitPercent.toFixed(2)}%)`
+              )
+            })
+
+            showToast(`📜 Синхронизировано ${newHistory.length} сделок`, 'info')
+          }
+
+          localStorage.setItem('last-history-sync', Date.now().toString())
+        }
+
+        // 2. ПОЛУЧАЕМ ОТКРЫТЫЕ ПОЗИЦИИ
+        const posRes = await fetch(`${backend.apiUrl}/api/positions`)
+        const posData = await posRes.json()
+        const backendPositions = posData.positions || []
+        const backendPairs = new Set(backendPositions.map(p => p.pair))
+
+        console.log(`📊 Backend мониторит: ${backendPositions.length} позиций`)
+
+        setPositions(prev => {
+          const cleanedAI = prev.ai.filter(p => backendPairs.has(p.pair))
+          const cleanedManual = prev.manual.filter(p => backendPairs.has(p.pair))
+          return { ai: cleanedAI, manual: cleanedManual }
+        })
+
+      } catch (err) {
+        console.error('❌ Ошибка синхронизации:', err)
+      }
+
+      showToast('Backend подключен 24/7', 'success')
+    })
+
+    backend.onDisconnect(() => {
+      console.log('🔴 Backend отключен')
+      setBackendConnected(false)
+
+      // 🔥 ЗАПУСКАЕМ ЛОКАЛЬНЫЙ МОНИТОРИНГ ДЛЯ ОТКРЫТЫХ ПОЗИЦИЙ
+      const allPositions = [...positions.ai, ...positions.manual]
+      if (allPositions.length > 0) {
+        console.log(`⚠️ Backend недоступен, запускаем локальный мониторинг для ${allPositions.length} позиций`)
+        allPositions.forEach(pos => {
+          monitor.watchPosition(pos)
+        })
+      }
+
+      showToast('Backend отключен, используется локальный мониторинг', 'warning')
+    })
+
+    backend.onPositionAlreadyClosed((data) => {
+      console.log('🚫 Позиция уже закрыта backend:', data)
+      
+      setPositions(prev => ({
+        ai: prev.ai.filter(p => p.id !== data.id && p.pair !== data.pair),
+        manual: prev.manual.filter(p => p.id !== data.id && p.pair !== data.pair)
+      }))
+    })
+
+    backend.onPositionClosed((data) => {
+      console.log('🎯 Backend закрыл позицию:', data)
+
+      // 🔥 НЕ ВЫЗЫВАЕМ closePosition - ОНА УЖЕ ЗАКРЫТА BACKEND
+      // Просто удаляем из списка и добавляем в историю
+
+      const isAI = positions.ai.some(p => p.id === data.id || p.pair === data.pair)
+
+      // Удаляем позицию
+      setPositions(prev => ({
+        ai: prev.ai.filter(p => p.id !== data.id && p.pair !== data.pair),
+        manual: prev.manual.filter(p => p.id !== data.id && p.pair !== data.pair)
+      }))
+
+      // Добавляем в историю
+      const historyEntry = {
+        pair: data.pair,
+        type: data.type || 'LONG',
+        entry: data.entry,
+        exit: data.exit || data.closePrice,
+        amount: data.amount,
+        profit: data.profit,
+        profitPercent: data.profitPercent,
+        openTime: data.openTime,
+        closeTime: data.closeTime,
+        time: new Date(data.closeTime).toLocaleString('ru-RU'),
+        isAI: data.isAI || isAI || false,
+        strategy: 'Manual'
+      }
+
+      setTradeHistory(prev => {
+        // Проверяем что её нет уже
+        const exists = prev.some(t => t.pair === data.pair && t.closeTime === data.closeTime)
+        if (exists) {
+          console.log('⚠️ Сделка уже в истории')
+          return prev
+        }
+        return [historyEntry, ...prev]
+      })
+
+      // Обновляем баланс
+      setPortfolio(prev => ({
+        ...prev,
+        balance: prev.balance + data.profit,
+        available: prev.available + data.amount + data.profit,
+        pnl: prev.pnl + data.profit
+      }))
+
+      // Уведомления
+      addNotification(
+        'trade',
+        data.reason === 'TP' ? '🎯 Take Profit' : '🛡️ Stop Loss',
+        `${data.pair}: ${data.profit >= 0 ? '+' : ''}$${data.profit.toFixed(2)} (${data.profitPercent.toFixed(2)}%)`
+      )
+
+      showToast(
+        `${data.reason === 'TP' ? '🎯' : '🛡️'} ${data.pair}: ${data.profit >= 0 ? '+' : ''}$${data.profit.toFixed(2)}`,
+        data.reason === 'TP' ? 'success' : 'error'
+      )
+    })
+
+    // Подключаемся
+    backend.connect()
+
+    // Ping каждые 30 секунд
+    const pingInterval = setInterval(() => {
+      if (backendConnected) {
+        backend.ping()
+      }
+    }, 30000)
+
+    return () => {
+      clearInterval(pingInterval)
+      backend.disconnect()
+    }
+  }, [])
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
@@ -238,9 +431,12 @@ export function TradingProvider({ children }) {
           return false
         }
 
+    const uniqueId = Date.now() + Math.floor(Math.random() * 100000)
+
     const newPosition = {
+      id: uniqueId,
       pair: trade.pair,
-      type: trade.type,
+      type: trade.type || 'LONG',
       entry: parseFloat(trade.entry),
       tp: parseFloat(trade.tp),
       sl: parseFloat(trade.sl),
@@ -248,10 +444,13 @@ export function TradingProvider({ children }) {
       openTime: Date.now(),
       profit: 0,
       profitPercent: 0,
+      currentPrice: parseFloat(trade.entry),
       time: new Date().toLocaleString('ru-RU'),
       analysis: trade.analysis || null,
       isAI: trade.isAI || false
     }
+
+    console.log(`📍 Открываем позицию:`, newPosition)
 
     if (trade.isAI) {
       setPositions(prev => ({
@@ -272,7 +471,16 @@ export function TradingProvider({ children }) {
       available: prev.available - trade.amount
     }))
 
-    monitor.watchPosition(newPosition)
+    addNotification('trade', 'Позиция открыта', `${trade.pair} $${trade.amount}`)
+
+    // 🔥 ЛОГИКА МОНИТОРИНГА: ЛИБО BACKEND, ЛИБО FRONTEND
+    if (backendConnected) {
+      console.log('📡 Отправляем в backend для 24/7 мониторинга')
+      backend.addPosition(newPosition)
+    } else {
+      console.log('⚠️ Backend недоступен, используем локальный мониторинг')
+      monitor.watchPosition(newPosition)
+    }
 
     return true
   }
@@ -527,6 +735,7 @@ export function TradingProvider({ children }) {
         recordSignalDecision,
         partialClose,
         updateTrailingStop,
+        backendConnected,
       }}
     >
       {children}

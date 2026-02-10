@@ -127,7 +127,25 @@ export default function SettingsPage() {
           </div>
         </div>
       </Link>
-            {/* Reset */}
+
+      {/* Backend Status */}
+      <Link 
+        to="/backend-status"
+        className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 mt-4 flex items-center justify-between hover:bg-[#2A2A2A] transition"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
+            📡
+          </div>
+          <div>
+            <p className="font-medium">Backend Status</p>
+            <p className="text-xs text-gray-400">24/7 мониторинг сервер</p>
+          </div>
+        </div>
+        <span className="text-gray-400">→</span>
+      </Link>
+
+      {/* Reset */}
             <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
         <h3 className="font-bold text-red-500 mb-2">⚠️ Опасная зона</h3>
         <p className="text-sm text-gray-400 mb-3">
