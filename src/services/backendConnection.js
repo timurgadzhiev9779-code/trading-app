@@ -12,14 +12,9 @@ export class BackendConnection {
         onPriceUpdate: null
       }
       
-      // URL backend (меняй на продакшн)
-      this.wsUrl = import.meta.env.PROD 
-        ? 'wss://твой-vps-домен.com' 
-        : 'ws://localhost:3001'
-      
-      this.apiUrl = import.meta.env.PROD
-        ? 'https://твой-vps-домен.com'
-        : 'http://localhost:3001'
+      // Всегда используем VPS backend
+      this.wsUrl = 'ws://104.248.245.135:3001'
+      this.apiUrl = 'http://104.248.245.135:3001'
     }
   
     // Подключение к backend

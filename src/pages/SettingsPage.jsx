@@ -152,10 +152,24 @@ export default function SettingsPage() {
           Удалит все позиции, историю и вернёт баланс к $10,000
         </p>
         <button 
-          onClick={() => {
-            if (confirm('Сбросить ВСЕ данные? Это действие нельзя отменить!')) {
+          onClick={async () => {
+            if (!confirm('Удалить ВСЮ историю, баланс, настройки? Это необратимо!')) {
+              return
+            }
+            
+            try {
+              const apiUrl = 'http://104.248.245.135:3001'
+              await fetch(`${apiUrl}/api/reset-all`, { method: 'POST' })
+              console.log('✅ Backend данные сброшены')
+              
               localStorage.clear()
-              window.location.href = '/'
+              sessionStorage.clear()
+              console.log('✅ Frontend данные сброшены')
+              
+              window.location.href = window.location.origin + '?t=' + Date.now()
+            } catch (err) {
+              console.error('❌ Ошибка сброса:', err)
+              alert('Ошибка сброса')
             }
           }}
           className="w-full bg-red-500 text-white py-3 rounded-lg font-medium"

@@ -16,9 +16,7 @@ export default function BackendStatusPage() {
 
   const checkHealth = async () => {
     try {
-      const apiUrl = import.meta.env.PROD 
-        ? 'https://твой-vps-домен.com'
-        : 'http://localhost:3001'
+      const apiUrl = 'http://104.248.245.135:3001'
       
       const res = await fetch(`${apiUrl}/health`)
       const data = await res.json()
