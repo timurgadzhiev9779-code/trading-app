@@ -4,6 +4,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { PositionMonitor } from './services/positionMonitor.js'
 import { TelegramNotifier } from './services/telegramBot.js'
+import { getMode, getAllModes, validateSignal, selectStrategy, calculatePositionSize } from './aiModes.js'
 
 dotenv.config()
 
@@ -31,6 +32,9 @@ const wsBroadcast = (message) => {
 // Position Monitor
 const monitor = new PositionMonitor(wsBroadcast)
 const telegram = new TelegramNotifier()
+
+// AI Mode (по умолчанию Сбалансированный)
+let currentAIMode = getMode('BALANCED')
 
 // WebSocket соединения
 wss.on('connection', (ws) => {
@@ -75,14 +79,83 @@ function handleWebSocketMessage(data, ws) {
       monitor.syncPositions(payload)
       break
 
-    case 'PING':
-      ws.send(JSON.stringify({ type: 'PONG' }))
-      break
-
-    default:
-      console.log('⚠️ Неизвестный тип сообщения:', type)
+      case 'PING':
+        ws.send(JSON.stringify({ type: 'PONG' }))
+        break
+  
+      case 'SET_AI_MODE':
+        currentAIMode = getMode(payload.mode)
+        console.log(`🤖 AI режим изменён: ${currentAIMode.name}`)
+        ws.send(JSON.stringify({ 
+          type: 'AI_MODE_CHANGED', 
+          data: currentAIMode 
+        }))
+        break
+  
+      case 'GET_AI_MODE':
+        ws.send(JSON.stringify({ 
+          type: 'AI_MODE', 
+          data: currentAIMode 
+        }))
+        break
+  
+      case 'GET_ALL_MODES':
+        ws.send(JSON.stringify({ 
+          type: 'ALL_MODES', 
+          data: getAllModes() 
+        }))
+        break
+  
+      case 'VALIDATE_SIGNAL':
+        const validation = validateSignal(payload.signal, currentAIMode)
+        ws.send(JSON.stringify({ 
+          type: 'SIGNAL_VALIDATION', 
+          data: validation 
+        }))
+        break
+  
+      default:
+        console.log('⚠️ Неизвестный тип сообщения:', type)
   }
 }
+
+// API endpoints для AI режимов
+app.get('/api/ai-modes', (req, res) => {
+  res.json(getAllModes())
+})
+
+app.get('/api/ai-mode/current', (req, res) => {
+  res.json(currentAIMode)
+})
+
+app.post('/api/ai-mode/set', (req, res) => {
+  const { mode } = req.body
+  currentAIMode = getMode(mode)
+  
+  wsBroadcast({
+    type: 'AI_MODE_CHANGED',
+    data: currentAIMode
+  })
+  
+  res.json({ success: true, mode: currentAIMode })
+})
+
+app.post('/api/validate-signal', (req, res) => {
+  const { signal } = req.body
+  const validation = validateSignal(signal, currentAIMode)
+  res.json(validation)
+})
+
+app.post('/api/calculate-position', (req, res) => {
+  const { portfolio, analysis, recentPerformance } = req.body
+  const positionSize = calculatePositionSize(
+    portfolio, 
+    analysis, 
+    currentAIMode, 
+    recentPerformance
+  )
+  res.json({ positionSize })
+})
 
 // REST API endpoints
 
