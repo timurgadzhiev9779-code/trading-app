@@ -103,10 +103,11 @@ export default function MarketsPage() {
       {/* Coins List */}
 <div className="space-y-2">
   {currentCoins.map((coin) => (
-    <div
-      key={coin.id}
-      className="bg-[#1A1A1A] rounded-xl p-3 border border-gray-800 hover:border-[#00E5FF]/50 transition"
-    >
+        <Link
+        key={coin.id}
+        to={`/market/${coin.id}`}
+        className="block bg-[#1A1A1A] rounded-xl p-3 border border-gray-800 hover:border-[#00E5FF]/50 transition"
+      >
       <div className="flex items-start gap-3">
         {/* Logo */}
         <img src={coin.image} alt={coin.name} className="w-10 h-10 rounded-full flex-shrink-0" />
@@ -142,7 +143,7 @@ export default function MarketsPage() {
           </div>
         </div>
       </div>
-    </div>
+      </Link>
   ))}
 </div>
 

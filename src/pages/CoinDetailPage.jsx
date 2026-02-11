@@ -8,9 +8,11 @@ import { WhaleDetector } from '../services/whaleDetector'
 import { detectRegime } from '../services/regimeDetection'
 import { isBlocked } from '../services/coingecko'
 import { formatPrice } from '../utils/formatPrice'
+import { getSymbolFromId } from '../utils/coinMapping'
 
 export default function CoinDetailPage() {
-  const { symbol } = useParams()
+  const { symbol: coinId } = useParams() // Получаем ID из URL
+  const symbol = getSymbolFromId(coinId) // Конвертируем в символ
   const navigate = useNavigate()
   const blocked = isBlocked(symbol)
   
@@ -678,13 +680,13 @@ export default function CoinDetailPage() {
                     <p className="text-sm text-gray-400 mb-3">📏 Уровни коррекции:</p>
                     <div className="space-y-2 text-sm">
                       {[
-                        { level: 'High (100%)', value: analysis.current.fibonacci.high, note: '' },
-                        { level: '23.6%', value: analysis.current.fibonacci.fib236, note: '← Слабая поддержка' },
-                        { level: '38.2%', value: analysis.current.fibonacci.fib382, note: '← Средняя поддержка' },
-                        { level: '50.0%', value: analysis.current.fibonacci.fib500, note: '← Психологический уровень' },
-                        { level: '61.8%', value: analysis.current.fibonacci.fib618, note: '← Золотая (сильная)' },
-                        { level: '78.6%', value: analysis.current.fibonacci.fib786, note: '← Критическая зона' },
-                        { level: 'Low (0%)', value: analysis.current.fibonacci.low, note: '' }
+                        { level: 'High (100%)', value: analysis.current.fibonacci?.high || 0, note: '' },
+                        { level: '23.6%', value: analysis.current.fibonacci?.fib236 || 0, note: '← Слабая поддержка' },
+                        { level: '38.2%', value: analysis.current.fibonacci?.fib382 || 0, note: '← Средняя поддержка' },
+                        { level: '50.0%', value: analysis.current.fibonacci?.fib500 || 0, note: '← Психологический уровень' },
+                        { level: '61.8%', value: analysis.current.fibonacci?.fib618 || 0, note: '← Золотая (сильная)' },
+                        { level: '78.6%', value: analysis.current.fibonacci?.fib786 || 0, note: '← Критическая зона' },
+                        { level: 'Low (0%)', value: analysis.current.fibonacci?.low || 0, note: '' }
                       ].map((fib, i) => (
                         <div key={i} className="flex justify-between items-center">
                           <span className="text-gray-400">{fib.level}</span>
@@ -710,25 +712,25 @@ export default function CoinDetailPage() {
                     <p className="text-gray-400 mb-2">📍 Текущая позиция:</p>
                     <p className="font-bold mb-1">Цена сейчас: ${price.toFixed(2)}</p>
                     <p className="text-gray-400 text-xs">
-                      {price > analysis.current.fibonacci.high
+                      {price > (analysis.current.fibonacci?.high || 0)
                         ? 'Выше всех уровней коррекции (сильный рост)'
-                        : price < analysis.current.fibonacci.low
+                        : price < (analysis.current.fibonacci?.low || 0)
                         ? 'Ниже всех уровней (сильное падение)'
                         : 'В зоне коррекции'
                       }
                     </p>
                     <p className="text-gray-400 mt-2 text-xs">
-                      Ближайший уровень: ${analysis.current.fibonacci.fib236.toFixed(2)}
-                      ({((analysis.current.fibonacci.fib236 - price) / price * 100).toFixed(1)}%)
+                    Ближайший уровень: {typeof analysis.current.fibonacci?.fib236 === 'number' ? '$' + analysis.current.fibonacci.fib236.toFixed(2) : 'Н/Д'}
+                    {typeof analysis.current.fibonacci?.fib236 === 'number' ? ` (${((analysis.current.fibonacci.fib236 - price) / price * 100).toFixed(1)}%)` : ''}
                     </p>
                   </div>
 
                   <div className="bg-[#0A0A0A] rounded-lg p-3">
                     <p className="text-xs text-gray-400 mb-2">💡 Как использовать:</p>
                     <ul className="text-xs text-gray-300 space-y-1">
-                      <li>• Если цена откатит к {formatPrice(analysis.current.fibonacci.fib236)} - хорошая точка для докупки</li>
-                      <li>• Уровень {formatPrice(analysis.current.fibonacci.fib618)} (61.8%) - сильная зона поддержки для входа</li>
-                      <li>• Пробой {formatPrice(analysis.current.fibonacci.fib236)} вниз - возможна коррекция к {formatPrice(analysis.current.fibonacci.fib382)}</li>
+                      <li>• Если цена откатит к {formatPrice(analysis.current.fibonacci?.fib236 || 0)} - хорошая точка для докупки</li>
+                      <li>• Уровень {formatPrice(analysis.current.fibonacci?.fib618 || 0)} (61.8%) - сильная зона поддержки для входа</li>
+                      <li>• Пробой {formatPrice(analysis.current.fibonacci?.fib236 || 0)} вниз - возможна коррекция к {formatPrice(analysis.current.fibonacci?.fib382 || 0)}</li>
                     </ul>
                   </div>
                 </div>

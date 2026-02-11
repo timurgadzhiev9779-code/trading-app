@@ -21,3 +21,45 @@ export const getAllPrices = async () => {
   const promises = symbols.map(s => get24hChange(s))
   return await Promise.all(promises)
 }
+
+
+export class BinanceAPI {
+  async getCandles(symbol, interval = '1h', limit = 100) {
+    try {
+      const res = await axios.get(`${BASE_URL}/klines`, {
+        params: {
+          symbol: symbol.toUpperCase() + 'USDT',
+          interval,
+          limit
+        }
+      })
+      
+      return res.data.map(candle => ({
+        time: candle[0],
+        open: parseFloat(candle[1]),
+        high: parseFloat(candle[2]),
+        low: parseFloat(candle[3]),
+        close: parseFloat(candle[4]),
+        volume: parseFloat(candle[5])
+      }))
+    } catch (err) {
+      console.error('Error fetching candles:', err)
+      return []
+    }
+  }
+
+  async getOrderBook(symbol, limit = 100) {
+    try {
+      const res = await axios.get(`${BASE_URL}/depth`, {
+        params: {
+          symbol: symbol.toUpperCase() + 'USDT',
+          limit
+        }
+      })
+      return res.data
+    } catch (err) {
+      console.error('Error fetching order book:', err)
+      return { bids: [], asks: [] }
+    }
+  }
+}
