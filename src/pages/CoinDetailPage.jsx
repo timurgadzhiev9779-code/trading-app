@@ -9,6 +9,8 @@ import { detectRegime } from '../services/regimeDetection'
 import { isBlocked } from '../services/coingecko'
 import { formatPrice } from '../utils/formatPrice'
 import { getSymbolFromId } from '../utils/coinMapping'
+import { calculateProfessionalConfidence, getStyleResult } from '../utils/confidenceCalculator'
+import { calculateSmartTargets } from '../utils/targetCalculator'
 
 export default function CoinDetailPage() {
   const { symbol: coinId } = useParams() // Получаем ID из URL
@@ -24,6 +26,7 @@ export default function CoinDetailPage() {
   const [regime, setRegime] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [tradingStyle, setTradingStyle] = useState('swing') // scalping, daytrading, swing
   
   // Табы
   const [activeTab, setActiveTab] = useState('overview') // overview / analysis
@@ -37,6 +40,12 @@ export default function CoinDetailPage() {
     // Проверяем избранное
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
     setIsFavorite(favorites.includes(symbol))
+    
+    // Загружаем выбранный стиль торговли
+    const savedStyle = localStorage.getItem('trading_style')
+    if (savedStyle) {
+      setTradingStyle(savedStyle)
+    }
   }, [symbol])
 
   const loadData = async () => {
@@ -95,83 +104,37 @@ export default function CoinDetailPage() {
     setOpenSection(openSection === section ? null : section)
   }
 
-  const calculateConfidence = () => {
-    if (!analysis) return 0
+  const getConfidenceData = () => {
+    if (!analysis) return { score: 0, recommendation: { text: 'ЖДАТЬ', color: 'text-gray-400', emoji: '⚪' } }
     
-    let confidence = 0
-    let maxScore = 100
-    
-    const current = analysis.current
-    
-    // Технические индикаторы (40 баллов)
-    if (current.trend.signal === 'BULLISH') confidence += 8
-    if (current.rsi.value > 40 && current.rsi.value < 70) confidence += 6
-    if (current.macd.signal === 'BULLISH') confidence += 8
-    if (current.trendStrength.signal === 'STRONG') confidence += 8
-    if (current.volume.signal === 'HIGH') confidence += 5
-    if (current.patterns && current.patterns.score > 0) confidence += 5
-    
-    // ML Прогноз (25 баллов)
-    if (current.mlPrediction) {
-      confidence += (current.mlPrediction.probability.up || 0) * 25
-    }
-    
-    // Режим рынка (15 баллов)
-    if (regime) {
-      if (regime.regime === 'BULL_MARKET') confidence += 15
-      else if (regime.regime === 'HIGH_VOLATILITY') confidence -= 10
-      else if (regime.regime === 'RANGING') confidence += 5
-    }
-    
-    // Order Book (10 баллов)
-    if (orderBook) {
-      if (orderBook.buyPressure > 60) confidence += 10
-      else if (orderBook.buyPressure < 40) confidence -= 5
-    }
-    
-    // Whale Activity (10 баллов)
-    if (whales) {
-      if (whales.signal === 'BUYING') confidence += 10
-      else if (whales.signal === 'SELLING') confidence -= 10
-    }
-    
-    return Math.max(0, Math.min(100, Math.round(confidence)))
+    return calculateProfessionalConfidence(analysis, price || analysis.current.price)
   }
 
-  const getRecommendation = () => {
-    const conf = calculateConfidence()
+  const getStyleInfo = () => {
+    const styles = {
+      scalping: { name: 'Скальпинг', emoji: '🔥', threshold: 50 },
+      daytrading: { name: 'Дейтрейдинг', emoji: '📈', threshold: 60 },
+      swing: { name: 'Свинг', emoji: '📊', threshold: 70 }
+    }
     
-    if (conf >= 75) return { text: 'ПОКУПКА', color: 'text-green-500', emoji: '🟢' }
-    if (conf >= 60) return { text: 'ОСТОРОЖНАЯ ПОКУПКА', color: 'text-yellow-500', emoji: '🟡' }
-    if (conf >= 40) return { text: 'ЖДАТЬ', color: 'text-gray-400', emoji: '⚪' }
-    if (conf >= 25) return { text: 'ОСТОРОЖНАЯ ПРОДАЖА', color: 'text-orange-500', emoji: '🟠' }
-    return { text: 'ПРОДАЖА', color: 'text-red-500', emoji: '🔴' }
+    return styles[tradingStyle] || styles.swing
   }
 
-  const getStrategy = () => {
-    if (!regime) return 'Трендовая'
+  const getTargets = () => {
+    if (!analysis) return { 
+      tp1: { price: 0, source: '' }, 
+      tp2: { price: 0, source: '' }, 
+      tp3: { price: 0, source: '' }, 
+      sl: { price: 0, source: '' },
+      riskReward: '0'
+    }
     
-    if (regime.regime === 'BULL_MARKET' && analysis?.current.trendStrength.adx > 25) {
-      return 'Импульсная 🚀'
-    }
-    if (regime.regime === 'RANGING') {
-      return 'Реверсная ⚖️'
-    }
-    return 'Трендовая 📈'
+    return calculateSmartTargets(analysis, price || analysis.current.price, tradingStyle)
   }
 
-  const calculateTargets = () => {
-    if (!analysis) return { tp1: 0, tp2: 0, tp3: 0, sl: 0 }
-    
-    const atr = analysis.current.volatility.atr
-    const current = price || analysis.current.price
-    
-    return {
-      tp1: current + (atr * 1.5),
-      tp2: current + (atr * 3.0),
-      tp3: current + (atr * 4.5),
-      sl: current - (atr * 2.0)
-    }
+  const handleStyleChange = (newStyle) => {
+    setTradingStyle(newStyle)
+    localStorage.setItem('trading_style', newStyle)
   }
 
   if (loading || !analysis) {
@@ -185,11 +148,12 @@ export default function CoinDetailPage() {
     )
   }
 
-  const recommendation = getRecommendation()
-  const confidence = calculateConfidence()
-  const strategy = getStrategy()
-  const targets = calculateTargets()
-  const riskReward = ((targets.tp2 - price) / (price - targets.sl)).toFixed(1)
+  const confidenceData = getConfidenceData()
+  const confidence = confidenceData.score
+  const recommendation = confidenceData.recommendation
+  const styleInfo = getStyleInfo()
+  const styleResult = getStyleResult(confidence, tradingStyle)
+  const targets = getTargets()
 
   return (
     <div className="text-white pb-24 max-w-md mx-auto">
@@ -308,8 +272,8 @@ export default function CoinDetailPage() {
         {/* TAB: ANALYSIS */}
         {activeTab === 'analysis' && (
           <div className="space-y-3">
-            {/* 1. ОБЩИЙ АНАЛИЗ */}
-            <div className="bg-[#1A1A1A] rounded-xl border border-gray-800">
+                        {/* 1. ОБЩИЙ АНАЛИЗ */}
+                        <div className="bg-[#1A1A1A] rounded-xl border border-gray-800">
               <button
                 onClick={() => toggleSection('general')}
                 className="w-full p-4 flex justify-between items-center"
@@ -322,25 +286,60 @@ export default function CoinDetailPage() {
                 <div className="px-4 pb-4 space-y-4">
                   {/* Оценка */}
                   <div>
-                    <h4 className="text-sm text-gray-400 mb-2">📊 ОЦЕНКА</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-gray-400 mb-1">Рекомендация:</p>
-                        <p className={`font-bold ${recommendation.color}`}>
-                          {recommendation.text} {recommendation.emoji}
-                        </p>
+                    <h4 className="text-sm text-gray-400 mb-3">📊 ОЦЕНКА</h4>
+                    
+                    <div className="bg-[#0A0A0A] rounded-lg p-3 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-400">Уверенность:</span>
+                        <span className="text-2xl font-bold text-[#00E5FF]">{confidence}%</span>
                       </div>
-                      <div>
-                        <p className="text-gray-400 mb-1">Уверенность:</p>
-                        <p className="font-bold text-[#00E5FF]">{confidence}%</p>
+                      
+                      <div className="w-full bg-gray-800 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-[#00E5FF] to-green-500 h-2 rounded-full transition-all"
+                          style={{ width: `${confidence}%` }}
+                        />
                       </div>
-                      <div>
-                        <p className="text-gray-400 mb-1">Стратегия:</p>
-                        <p className="font-bold">{strategy}</p>
+                    </div>
+
+                    {/* Выбор стиля торговли */}
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-400 mb-2 block">Ваш стиль:</label>
+                      <select
+                        value={tradingStyle}
+                        onChange={(e) => handleStyleChange(e.target.value)}
+                        className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg p-3 text-white focus:border-[#00E5FF] focus:outline-none"
+                      >
+                        <option value="scalping">🔥 Скальпинг (порог 50%)</option>
+                        <option value="daytrading">📈 Дейтрейдинг (порог 60%)</option>
+                        <option value="swing">📊 Свинг (порог 70%)</option>
+                      </select>
+                    </div>
+
+                    {/* Результат для выбранного стиля */}
+                    <div className={`bg-[#0A0A0A] rounded-lg p-4 border-2 ${
+                      styleResult.suitable ? 'border-green-500/30' : 'border-red-500/30'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-lg font-bold">{styleInfo.emoji} {styleInfo.name.toUpperCase()}</span>
+                        {styleResult.suitable ? (
+                          <span className="text-green-500 font-bold">✅</span>
+                        ) : (
+                          <span className="text-red-500 font-bold">❌</span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-gray-400 mb-1">Тип рынка:</p>
-                        <p className="font-bold">{regime?.regime || 'Анализ...'}</p>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Рекомендация:</span>
+                          <span className={`font-bold ${recommendation.color}`}>
+                            {recommendation.text} {recommendation.emoji}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Тип рынка:</span>
+                          <span className="font-bold">{regime?.regime || 'Анализ...'}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -356,30 +355,30 @@ export default function CoinDetailPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Цель 1:</span>
                         <span className="font-bold text-green-500">
-                          ${targets.tp1.toFixed(2)} (+{((targets.tp1 - price) / price * 100).toFixed(1)}%) 🎯
+                        ${Number(targets.tp1?.price || 0).toFixed(2)} (+{(((Number(targets.tp1?.price) || price) - price) / price * 100).toFixed(1)}%) 🎯
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Цель 2:</span>
                         <span className="font-bold text-green-500">
-                          ${targets.tp2.toFixed(2)} (+{((targets.tp2 - price) / price * 100).toFixed(1)}%) 🎯
+                        ${Number(targets.tp2?.price || 0).toFixed(2)} (+{(((Number(targets.tp2?.price) || price) - price) / price * 100).toFixed(1)}%) 🎯
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Цель 3:</span>
                         <span className="font-bold text-green-500">
-                          ${targets.tp3.toFixed(2)} (+{((targets.tp3 - price) / price * 100).toFixed(1)}%) 🎯
+                        ${Number(targets.tp3?.price || 0).toFixed(2)} (+{(((Number(targets.tp3?.price) || price) - price) / price * 100).toFixed(1)}%) 🎯
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Стоп:</span>
                         <span className="font-bold text-red-500">
-                          ${targets.sl.toFixed(2)} ({((targets.sl - price) / price * 100).toFixed(1)}%) 🛡️
+                        ${Number(targets.sl?.price || 0).toFixed(2)} ({(((Number(targets.sl?.price) || price) - price) / price * 100).toFixed(1)}%) 🛡️
                         </span>
                       </div>
                       <div className="flex justify-between pt-2 border-t border-gray-800">
                         <span className="text-gray-400">Риск/Прибыль:</span>
-                        <span className="font-bold">1:{riskReward}</span>
+                        <span className="font-bold">1:{targets.riskReward || '0'}</span>
                       </div>
                     </div>
                   </div>
@@ -424,12 +423,12 @@ export default function CoinDetailPage() {
                       )}
                       <div className="flex justify-between">
                         <span className="text-gray-400">RSI:</span>
-                        <span className="text-gray-300">{analysis.current.rsi.value} (норма) ✓</span>
+                        <span className="text-gray-300">{analysis.current.rsi?.value?.toFixed?.(0) || 'N/A'} (норма) ✓</span>
                       </div>
                     </div>
-                  </div>
+                    </div>
 
-                  {/* Вывод */}
+                   {/* Вывод */}
                   <div className="bg-[#0A0A0A] rounded-lg p-3">
                     <h4 className="text-sm text-gray-400 mb-2">💡 ВЫВОД</h4>
                     <p className="text-sm text-gray-300 leading-relaxed">
@@ -446,13 +445,13 @@ export default function CoinDetailPage() {
                   <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
                     <h4 className="text-sm text-red-500 mb-2">⚠️ РИСКИ</h4>
                     <ul className="text-sm text-gray-400 space-y-1">
-                      <li>• Пробой уровня ${targets.sl.toFixed(2)} отменяет {analysis.current.trend.signal === 'BULLISH' ? 'бычий' : 'медвежий'} сценарий</li>
+                    <li>• Пробой уровня ${Number(targets.sl?.price || 0).toFixed(2)} отменяет {analysis.current.trend.signal === 'BULLISH' ? 'бычий' : 'медвежий'} сценарий</li>
                       <li>• Рекомендуется использовать стоп-лосс</li>
                       {regime?.regime === 'HIGH_VOLATILITY' && (
                         <li>• Высокая волатильность - увеличенный риск</li>
                       )}
                     </ul>
-                  </div>
+                    </div>
                 </div>
               )}
             </div>
