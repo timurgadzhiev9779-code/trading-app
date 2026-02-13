@@ -29,7 +29,8 @@ export default function CoinDetailPage() {
   const [tradingStyle, setTradingStyle] = useState('swing')
   const [tradingMode, setTradingMode] = useState('balanced') // conservative, balanced, aggressive
   const [showStyleSelector, setShowStyleSelector] = useState(false)
-  const [expandedSection, setExpandedSection] = useState(null) // 'mode' or 'style' // scalping, daytrading, swing
+  const [expandedSection, setExpandedSection] = useState(null) // 'mode' or 'style'
+  const [showBreakdown, setShowBreakdown] = useState(false) // scalping, daytrading, swing
   
   // Табы
   const [activeTab, setActiveTab] = useState('overview') // overview / analysis
@@ -188,7 +189,41 @@ const getStyleConfig = () => {
   }
   return styles[tradingStyle] || styles.swing
 }
-  
+
+const getSmartConclusion = (conf, anal, result, modeConf, styleConf) => {
+  const trend = anal.current.trend.signal
+  const trendDirection = trend === 'BULLISH' ? 'восходящий' : trend === 'BEARISH' ? 'нисходящий' : 'боковой'
+  const mlProb = anal.current.mlPrediction?.probability?.up 
+    ? (anal.current.mlPrediction.probability.up * 100).toFixed(0) 
+    : null
+
+  if (conf >= 70) {
+    return `Профессиональная оценка показывает сильный ${trendDirection} тренд с высоким уровнем подтверждения. ${
+      mlProb ? `ML-анализ подтверждает движение с вероятностью ${mlProb}%. ` : ''
+    }Для ${styleConf.name.toLowerCase()} стратегии рекомендуется открытие ${trend === 'BULLISH' ? 'длинной' : 'короткой'} позиции с размером ${result.positionSize}. Установите стоп-лосс на указанном уровне.`
+  }
+
+  if (conf >= 60) {
+    return `Индикаторы показывают умеренно сильный ${trendDirection} тренд. ${
+      mlProb ? `ML-модель оценивает вероятность движения в ${mlProb}%. ` : ''
+    }Для ${styleConf.name.toLowerCase()} подходит вход с размером позиции ${result.positionSize}. Рекомендуется строгое соблюдение стоп-лосса.`
+  }
+
+  if (conf >= 50) {
+    return `Текущий анализ показывает ${trendDirection} настроение рынка, но сигнал требует дополнительного подтверждения. ${
+      modeConf.name === 'Агрессивный' 
+        ? `В агрессивном режиме возможен вход с ${result.positionSize} позиции, но риски повышены. ` 
+        : `Рекомендуется дождаться более четкого подтверждения. `
+    }Используйте узкие стоп-лоссы.`
+  }
+
+  if (conf >= 40) {
+    return `Рынок показывает смешанные сигналы с ${trendDirection} уклоном. Профессиональные критерии ${modeConf.name.toLowerCase()} режима не выполнены. Дождитесь более четкой картины или переключите режим.`
+  }
+
+  return `Текущие условия не соответствуют критериям для ${styleConf.name.toLowerCase()} стратегии в ${modeConf.name.toLowerCase()} режиме. Рекомендуется дождаться более благоприятных условий.`
+}
+
 const getConfidenceData = () => {
   if (!analysis) return { score: 0, recommendation: { text: 'ЖДАТЬ', color: 'text-gray-400', emoji: '⚪' } }
   
@@ -398,14 +433,86 @@ const getConfidenceData = () => {
                       </div>
                       
                       <div className="w-full bg-gray-800 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-[#00E5FF] to-green-500 h-2 rounded-full transition-all"
-                          style={{ width: `${confidence}%` }}
-                        />
-                      </div>
-                    </div>
+  <div
+    className="bg-gradient-to-r from-[#00E5FF] to-green-500 h-2 rounded-full transition-all"
+    style={{ width: `${confidence}%` }}
+  />
+</div>
 
-                    {/* Выбор режима и стиля */}
+{/* Кнопка показать разбивку */}
+<button
+  onClick={() => setShowBreakdown(!showBreakdown)}
+  className="text-xs text-gray-400 hover:text-[#00E5FF] transition mt-2"
+>
+  {showBreakdown ? '▲ Скрыть детали' : '▼ Показать детали расчёта'}
+</button>
+
+{/* Разбивка баллов */}
+{showBreakdown && confidenceData.breakdown && (
+  <div className="mt-3 space-y-2 text-xs">
+    {/* Контекст */}
+    <div className="bg-[#1A1A1A] rounded p-2">
+      <div className="flex justify-between mb-1">
+        <span className="text-gray-400">📊 Контекст рынка:</span>
+        <span className="font-bold text-[#00E5FF]">{confidenceData.breakdown.context}/30</span>
+      </div>
+      {confidenceData.breakdown.details.structure && (
+        <p className="text-gray-500 text-[10px]">
+          • Структура: {confidenceData.breakdown.details.structure.status}
+        </p>
+      )}
+      {confidenceData.breakdown.details.multiTF && (
+        <p className="text-gray-500 text-[10px]">
+          • Multi-TF: {confidenceData.breakdown.details.multiTF.status}
+        </p>
+      )}
+    </div>
+
+    {/* Подтверждение */}
+    <div className="bg-[#1A1A1A] rounded p-2">
+      <div className="flex justify-between mb-1">
+        <span className="text-gray-400">✓ Подтверждение:</span>
+        <span className="font-bold text-[#00E5FF]">{confidenceData.breakdown.confirmation}/50</span>
+      </div>
+      {confidenceData.breakdown.details.priceAction && (
+        <p className="text-gray-500 text-[10px]">
+          • Price Action: {confidenceData.breakdown.details.priceAction.status}
+        </p>
+      )}
+      {confidenceData.breakdown.details.volume && (
+        <p className="text-gray-500 text-[10px]">
+          • Объём: {confidenceData.breakdown.details.volume.status}
+        </p>
+      )}
+    </div>
+
+    {/* Фильтры */}
+    <div className="bg-[#1A1A1A] rounded p-2">
+      <div className="flex justify-between mb-1">
+        <span className="text-gray-400">🔍 Фильтры:</span>
+        <span className="font-bold text-[#00E5FF]">{confidenceData.breakdown.filters}/20</span>
+      </div>
+      {confidenceData.breakdown.details.rsi && (
+        <p className="text-gray-500 text-[10px]">
+          • RSI: {confidenceData.breakdown.details.rsi.status} ({confidenceData.breakdown.details.rsi.value})
+        </p>
+      )}
+    </div>
+
+    {/* Режим бонус */}
+    <div className="bg-green-500/10 border border-green-500/30 rounded p-2">
+      <div className="flex justify-between">
+        <span className="text-gray-400">🎁 Бонус режима:</span>
+        <span className="font-bold text-green-500">
+          {tradingMode === 'conservative' ? '+0' : tradingMode === 'balanced' ? '+10' : '+20'}
+        </span>
+      </div>
+    </div>
+  </div>
+)}
+</div>
+
+{/* Выбор режима и стиля */}
 <div className="mb-3">
   <button
     onClick={toggleStyleSelector}
@@ -650,17 +757,12 @@ const getConfidenceData = () => {
                     </div>
 
                    {/* Вывод */}
-                  <div className="bg-[#0A0A0A] rounded-lg p-3">
-                    <h4 className="text-sm text-gray-400 mb-2">💡 ВЫВОД</h4>
-                    <p className="text-sm text-gray-300 leading-relaxed">
-                      {confidence >= 75
-                        ? `Обнаружен сильный ${analysis.current.trend.signal === 'BULLISH' ? 'восходящий' : 'нисходящий'} тренд с подтверждением всех индикаторов. ${analysis.current.mlPrediction ? `ML анализ показывает ${(analysis.current.mlPrediction.probability.up * 100).toFixed(0)}% вероятность продолжения роста.` : ''} Рекомендуется открытие ${analysis.current.trend.signal === 'BULLISH' ? 'LONG' : 'SHORT'} позиции с постепенным закрытием на трёх целевых уровнях.`
-                        : confidence >= 50
-                        ? `Индикаторы показывают умеренные сигналы. Рекомендуется осторожный подход с узкими стоп-лоссами.`
-                        : `Смешанные сигналы. Рекомендуется дождаться более чёткого подтверждения тренда.`
-                      }
-                    </p>
-                  </div>
+<div className="bg-[#0A0A0A] rounded-lg p-3">
+  <h4 className="text-sm text-gray-400 mb-2">💡 ВЫВОД</h4>
+  <p className="text-sm text-gray-300 leading-relaxed">
+    {getSmartConclusion(confidence, analysis, styleResult, getModeConfig(), getStyleConfig())}
+  </p>
+</div>
 
                   {/* Риски */}
                   <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">

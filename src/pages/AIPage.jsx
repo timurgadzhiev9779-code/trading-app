@@ -2,22 +2,39 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Settings, BarChart3, Shield, CheckCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AI_MODES, getAllModes } from '../config/aiModes'
+import { AITradingService } from '../services/aiTradingService'
 
 export default function AIPage() {
   const [selectedMode, setSelectedMode] = useState('BALANCED')
   const [showModeSelector, setShowModeSelector] = useState(false)
+  const [aiTradingMode, setAITradingMode] = useState('BALANCED')
 
   useEffect(() => {
-    // Загружаем сохранённый режим
-    const saved = localStorage.getItem('ai_mode')
-    if (saved) {
-      setSelectedMode(saved)
-    }
+    // Загружаем режим AI трейдинга с сервера
+    loadAIMode()
   }, [])
+  
+  const loadAIMode = async () => {
+    const service = new AITradingService()
+    const mode = await service.getCurrentMode()
+    if (mode) {
+      setAITradingMode(mode.id.toUpperCase())
+    }
+  }
 
-  const handleModeChange = (modeId) => {
+  const handleModeChange = async (modeId) => {
     setSelectedMode(modeId)
     localStorage.setItem('ai_mode', modeId)
+    
+    // Отправляем на backend
+    const service = new AITradingService()
+    const result = await service.setMode(modeId)
+    
+    if (result && result.success) {
+      setAITradingMode(modeId)
+      console.log('✅ AI режим обновлён:', result.mode.name)
+    }
+    
     setShowModeSelector(false)
   }
 
