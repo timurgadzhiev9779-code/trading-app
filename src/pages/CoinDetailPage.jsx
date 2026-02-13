@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Star, TrendingUp, TrendingDown, Lock } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { ArrowLeft, Star, TrendingUp, TrendingDown, Lock, Zap, TrendingUp as TrendingUpIcon, BarChart3, Shield, Scale, Rocket, ChevronDown, ChevronUp } from 'lucide-react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { connectPriceStream } from '../services/websocket'
 import { TechnicalAnalyzer } from '../services/technicalAnalysis'
@@ -26,7 +26,10 @@ export default function CoinDetailPage() {
   const [regime, setRegime] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isFavorite, setIsFavorite] = useState(false)
-  const [tradingStyle, setTradingStyle] = useState('swing') // scalping, daytrading, swing
+  const [tradingStyle, setTradingStyle] = useState('swing')
+  const [tradingMode, setTradingMode] = useState('balanced') // conservative, balanced, aggressive
+  const [showStyleSelector, setShowStyleSelector] = useState(false)
+  const [expandedSection, setExpandedSection] = useState(null) // 'mode' or 'style' // scalping, daytrading, swing
   
   // Табы
   const [activeTab, setActiveTab] = useState('overview') // overview / analysis
@@ -37,15 +40,14 @@ export default function CoinDetailPage() {
   useEffect(() => {
     loadData()
     
-    // Проверяем избранное
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
     setIsFavorite(favorites.includes(symbol))
     
-    // Загружаем выбранный стиль торговли
-    const savedStyle = localStorage.getItem('trading_style')
-    if (savedStyle) {
-      setTradingStyle(savedStyle)
-    }
+    const savedStyle = localStorage.getItem('trading_style') || 'swing'
+    const savedMode = localStorage.getItem('trading_mode') || 'balanced'
+    
+    setTradingStyle(savedStyle)
+    setTradingMode(savedMode)
   }, [symbol])
 
   const loadData = async () => {
@@ -100,15 +102,98 @@ export default function CoinDetailPage() {
     }
   }
 
-  const toggleSection = (section) => {
-    setOpenSection(openSection === section ? null : section)
-  }
+  const handleModeChange = (newMode) => {
+  setTradingMode(newMode)
+  localStorage.setItem('trading_mode', newMode)
+  setExpandedSection(null)
+  setShowStyleSelector(false)
+}
 
-  const getConfidenceData = () => {
-    if (!analysis) return { score: 0, recommendation: { text: 'ЖДАТЬ', color: 'text-gray-400', emoji: '⚪' } }
-    
-    return calculateProfessionalConfidence(analysis, price || analysis.current.price)
+const handleStyleChange = (newStyle) => {
+  setTradingStyle(newStyle)
+  localStorage.setItem('trading_style', newStyle)
+  setExpandedSection(null)
+  setShowStyleSelector(false)
+}
+
+const toggleStyleSelector = () => {
+  setShowStyleSelector(!showStyleSelector)
+  setExpandedSection(null)
+}
+
+const toggleExpandedSection = (section) => {
+  setExpandedSection(expandedSection === section ? null : section)
+}
+
+const toggleAccordion = (section) => {
+  setOpenSection(openSection === section ? null : section)
+}
+
+const getModeConfig = () => {
+  const modes = {
+    conservative: {
+      name: 'Консервативный',
+      icon: Shield,
+      threshold: 70,
+      color: 'text-green-500',
+      bg: 'bg-green-500/10',
+      border: 'border-green-500/30',
+      description: 'Только надёжные сигналы'
+    },
+    balanced: {
+      name: 'Сбалансированный',
+      icon: Scale,
+      threshold: 60,
+      color: 'text-blue-500',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500/30',
+      description: 'Оптимальный баланс'
+    },
+    aggressive: {
+      name: 'Агрессивный',
+      icon: Rocket,
+      threshold: 50,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      border: 'border-orange-500/30',
+      description: 'Больше возможностей'
+    }
   }
+  return modes[tradingMode] || modes.balanced
+}
+
+const getStyleConfig = () => {
+  const styles = {
+    scalping: {
+      name: 'Скальпинг',
+      icon: Zap,
+      range: '0.1-0.8%',
+      time: 'Минуты',
+      color: 'text-yellow-500'
+    },
+    daytrading: {
+      name: 'Дейтрейдинг',
+      icon: TrendingUpIcon,
+      range: '0.5-5%',
+      time: 'Часы',
+      color: 'text-cyan-500'
+    },
+    swing: {
+      name: 'Свинг',
+      icon: BarChart3,
+      range: '1-10%',
+      time: 'Дни',
+      color: 'text-purple-500'
+    }
+  }
+  return styles[tradingStyle] || styles.swing
+}
+  
+const getConfidenceData = () => {
+  if (!analysis) return { score: 0, recommendation: { text: 'ЖДАТЬ', color: 'text-gray-400', emoji: '⚪' } }
+  
+  return calculateProfessionalConfidence(analysis, price || analysis.current.price, tradingMode)
+}
 
   const getStyleInfo = () => {
     const styles = {
@@ -132,11 +217,6 @@ export default function CoinDetailPage() {
     return calculateSmartTargets(analysis, price || analysis.current.price, tradingStyle)
   }
 
-  const handleStyleChange = (newStyle) => {
-    setTradingStyle(newStyle)
-    localStorage.setItem('trading_style', newStyle)
-  }
-
   if (loading || !analysis) {
     return (
       <div className="text-white p-4 flex items-center justify-center h-screen">
@@ -152,7 +232,30 @@ export default function CoinDetailPage() {
   const confidence = confidenceData.score
   const recommendation = confidenceData.recommendation
   const styleInfo = getStyleInfo()
-  const styleResult = getStyleResult(confidence, tradingStyle)
+  const styleResult = (() => {
+    const modeConfig = getModeConfig()
+    const threshold = modeConfig.threshold
+    const suitable = confidence >= threshold
+    
+    let positionSize = '0%'
+    if (confidence >= threshold + 8) {
+      positionSize = '100%'
+    } else if (confidence >= threshold) {
+      positionSize = '70%'
+    } else if (confidence >= threshold - 10) {
+      positionSize = '50%'
+    }
+    
+    return {
+      threshold,
+      suitable,
+      positionSize,
+      status: suitable ? 'ПОДХОДИТ' : 'НЕ ПОДХОДИТ',
+      recommendation: suitable ? 
+        { text: 'ПОКУПКА', color: 'text-green-500' } :
+        { text: 'ЖДАТЬ', color: 'text-gray-400' }
+    }
+  })()
   const targets = getTargets()
 
   return (
@@ -275,7 +378,7 @@ export default function CoinDetailPage() {
                         {/* 1. ОБЩИЙ АНАЛИЗ */}
                         <div className="bg-[#1A1A1A] rounded-xl border border-gray-800">
               <button
-                onClick={() => toggleSection('general')}
+                onClick={() => toggleAccordion('general')}
                 className="w-full p-4 flex justify-between items-center"
               >
                 <h3 className="font-bold">🎯 Общий анализ</h3>
@@ -302,19 +405,137 @@ export default function CoinDetailPage() {
                       </div>
                     </div>
 
-                    {/* Выбор стиля торговли */}
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-400 mb-2 block">Ваш стиль:</label>
-                      <select
-                        value={tradingStyle}
-                        onChange={(e) => handleStyleChange(e.target.value)}
-                        className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg p-3 text-white focus:border-[#00E5FF] focus:outline-none"
-                      >
-                        <option value="scalping">🔥 Скальпинг (порог 50%)</option>
-                        <option value="daytrading">📈 Дейтрейдинг (порог 60%)</option>
-                        <option value="swing">📊 Свинг (порог 70%)</option>
-                      </select>
+                    {/* Выбор режима и стиля */}
+<div className="mb-3">
+  <button
+    onClick={toggleStyleSelector}
+    className="w-full bg-[#0A0A0A] border border-gray-800 rounded-lg p-3 flex items-center justify-between hover:border-[#00E5FF]/50 transition"
+  >
+    <div className="flex items-center gap-3">
+      {React.createElement(getModeConfig().icon, { size: 20, className: getModeConfig().color })}
+      {React.createElement(getStyleConfig().icon, { size: 20, className: getStyleConfig().color })}
+      <div className="text-left">
+        <p className="text-sm text-gray-400">Конфигурация:</p>
+        <p className="font-medium">
+          {getModeConfig().name} · {getStyleConfig().name}
+        </p>
+      </div>
+    </div>
+    {showStyleSelector ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+  </button>
+
+  {/* Выпадающее меню */}
+  {showStyleSelector && (
+    <div className="mt-2 bg-[#0A0A0A] border border-gray-800 rounded-lg overflow-hidden">
+      
+      {/* РЕЖИМ */}
+      <div className="border-b border-gray-800">
+        <button
+          onClick={() => toggleExpandedSection('mode')}
+          className="w-full p-3 flex items-center justify-between hover:bg-[#1A1A1A] transition"
+        >
+          <div className="flex items-center gap-2">
+            <Shield size={18} className="text-gray-400" />
+            <span className="font-medium">РЕЖИМ УВЕРЕННОСТИ</span>
+          </div>
+          {expandedSection === 'mode' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {expandedSection === 'mode' && (
+          <div className="border-t border-gray-800">
+            {['conservative', 'balanced', 'aggressive'].map(mode => {
+              const config = {
+                conservative: { name: 'Консервативный', icon: Shield, threshold: 70, color: 'text-green-500', bg: 'bg-green-500/10', description: 'Только надёжные сигналы' },
+                balanced: { name: 'Сбалансированный', icon: Scale, threshold: 60, color: 'text-blue-500', bg: 'bg-blue-500/10', description: 'Оптимальный баланс' },
+                aggressive: { name: 'Агрессивный', icon: Rocket, threshold: 50, color: 'text-orange-500', bg: 'bg-orange-500/10', description: 'Больше возможностей' }
+              }[mode]
+
+              const Icon = config.icon
+              const isSelected = tradingMode === mode
+
+              return (
+                <button
+                  key={mode}
+                  onClick={() => handleModeChange(mode)}
+                  className={`w-full p-3 flex items-start gap-3 hover:bg-[#1A1A1A] transition ${
+                    isSelected ? config.bg : ''
+                  } ${isSelected ? 'border-l-2 ' + config.color.replace('text-', 'border-') : ''}`}
+                >
+                  <Icon size={20} className={config.color} />
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{config.name}</span>
+                      {isSelected && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${config.bg} ${config.color}`}>
+                          ВЫБРАНО
+                        </span>
+                      )}
                     </div>
+                    <p className="text-xs text-gray-400 mb-1">{config.description}</p>
+                    <p className="text-xs text-gray-500">Порог: {config.threshold}%</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* СТИЛЬ */}
+      <div>
+        <button
+          onClick={() => toggleExpandedSection('style')}
+          className="w-full p-3 flex items-center justify-between hover:bg-[#1A1A1A] transition"
+        >
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-gray-400" />
+            <span className="font-medium">СТИЛЬ ТОРГОВЛИ</span>
+          </div>
+          {expandedSection === 'style' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {expandedSection === 'style' && (
+          <div className="border-t border-gray-800">
+            {['scalping', 'daytrading', 'swing'].map(style => {
+              const config = {
+                scalping: { name: 'Скальпинг', icon: Zap, range: '0.1-0.8%', time: 'Минуты', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                daytrading: { name: 'Дейтрейдинг', icon: TrendingUpIcon, range: '0.5-5%', time: 'Часы', color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+                swing: { name: 'Свинг', icon: BarChart3, range: '1-10%', time: 'Дни', color: 'text-purple-500', bg: 'bg-purple-500/10' }
+              }[style]
+
+              const Icon = config.icon
+              const isSelected = tradingStyle === style
+
+              return (
+                <button
+                  key={style}
+                  onClick={() => handleStyleChange(style)}
+                  className={`w-full p-3 flex items-start gap-3 hover:bg-[#1A1A1A] transition ${
+                    isSelected ? config.bg : ''
+                  } ${isSelected ? 'border-l-2 ' + config.color.replace('text-', 'border-') : ''}`}
+                >
+                  <Icon size={20} className={config.color} />
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{config.name}</span>
+                      {isSelected && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${config.bg} ${config.color}`}>
+                          ВЫБРАНО
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">Цели: {config.range}</p>
+                    <p className="text-xs text-gray-500">Время: {config.time}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+</div>
 
                     {/* Результат для выбранного стиля */}
                     <div className={`bg-[#0A0A0A] rounded-lg p-4 border-2 ${
@@ -460,7 +681,7 @@ export default function CoinDetailPage() {
             {analysis.current.mlPrediction && (
               <div className="bg-[#1A1A1A] rounded-xl border border-[#00E5FF]/30">
                 <button
-                  onClick={() => toggleSection('ml')}
+                  onClick={() => toggleAccordion('ml')}
                   className="w-full p-4 flex justify-between items-center"
                 >
                   <div className="flex items-center gap-2">
@@ -599,7 +820,7 @@ export default function CoinDetailPage() {
             {analysis.current.patterns && analysis.current.patterns.all.length > 0 && (
               <div className="bg-[#1A1A1A] rounded-xl border border-gray-800">
                 <button
-                  onClick={() => toggleSection('patterns')}
+                  onClick={() => toggleAccordion('patterns')}
                   className="w-full p-4 flex justify-between items-center"
                 >
                   <h3 className="font-bold">📐 Паттерны</h3>
@@ -666,7 +887,7 @@ export default function CoinDetailPage() {
             {/* 4. FIBONACCI */}
             <div className="bg-[#1A1A1A] rounded-xl border border-gray-800">
               <button
-                onClick={() => toggleSection('fibonacci')}
+                onClick={() => toggleAccordion('fibonacci')}
                 className="w-full p-4 flex justify-between items-center"
               >
                 <h3 className="font-bold">🌀 Fibonacci</h3>

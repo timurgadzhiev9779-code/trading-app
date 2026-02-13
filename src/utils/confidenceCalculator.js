@@ -3,9 +3,26 @@
  * 30% Контекст + 50% Подтверждение + 20% Фильтры
  */
 
-export function calculateProfessionalConfidence(analysis, currentPrice) {
-    let score = 0
-    const breakdown = {
+export function calculateProfessionalConfidence(analysis, currentPrice, mode = 'balanced') {
+  let score = 0
+
+  // Настройки для разных режимов
+const modeSettings = {
+  conservative: {
+    baseLine: 0
+  },
+  balanced: {
+    baseLine: 10
+  },
+  aggressive: {
+    baseLine: 20
+  }
+}
+
+const settings = modeSettings[mode] || modeSettings.balanced
+score += settings.baseLine
+  
+  const breakdown = {
       context: 0,
       confirmation: 0,
       filters: 0,
@@ -63,7 +80,7 @@ export function calculateProfessionalConfidence(analysis, currentPrice) {
     // ИТОГОВЫЙ СЧЁТ
     // ============================================
   
-    score = breakdown.context + breakdown.confirmation + breakdown.filters
+    score += breakdown.context + breakdown.confirmation + breakdown.filters
   
     return {
       score: Math.max(0, Math.min(100, Math.round(score))),
