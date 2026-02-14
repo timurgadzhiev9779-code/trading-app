@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Settings, BarChart3, Shield, CheckCircle } from 'lucide-react'
+import { TrendingUp, Settings, BarChart3, Shield, CheckCircle, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AI_MODES, getAllModes } from '../config/aiModes'
 import { AITradingService } from '../services/aiTradingService'
@@ -195,6 +195,20 @@ export default function AIPage() {
           Настроить ручной мониторинг
         </Link>
       </div>
+
+{/* Backtest */}
+<Link
+  to="/backtest"
+  className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 mb-4 hover:border-[#00E5FF]/30 flex items-center gap-3"
+>
+  <div className="w-12 h-12 bg-[#00E5FF]/10 rounded-xl flex items-center justify-center">
+    <Activity className="text-[#00E5FF]" size={24} />
+  </div>
+  <div className="flex-1">
+    <p className="font-bold text-lg">Бэктест системы</p>
+    <p className="text-gray-400 text-sm">Проверить стратегию на истории</p>
+  </div>
+</Link>
 
       {/* Current Mode Details */}
       <div className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-800">
