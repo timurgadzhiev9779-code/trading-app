@@ -1,6 +1,6 @@
 // Сервис для управления AI ботами
 
-const BACKEND_URL = 'http://104.248.245.135:3001'
+const BACKEND_URL = ''
 
 export class BotService {
   
