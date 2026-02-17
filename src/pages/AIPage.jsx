@@ -332,6 +332,17 @@ const toggleStrategy = (strategyId) => {
       {/* Quick Actions */}
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ИНСТРУМЕНТЫ</h2>
+
+        <Link
+  to="/dashboard"
+  className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
+>
+  <Activity className="text-[#00E5FF]" size={24} />
+  <div className="flex-1">
+    <p className="font-medium">Dashboard</p>
+    <p className="text-gray-400 text-xs">Графики и аналитика</p>
+  </div>
+</Link>
         
         <Link
           to="/positions"
