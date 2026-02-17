@@ -334,6 +334,22 @@ const toggleStrategy = (strategyId) => {
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ИНСТРУМЕНТЫ</h2>
         
         <Link
+          to="/positions"
+          className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
+        >
+          <Activity className="text-[#00E5FF]" size={24} />
+          <div className="flex-1">
+            <p className="font-medium">Открытые позиции</p>
+            <p className="text-gray-400 text-xs">Мониторинг в реальном времени</p>
+          </div>
+          {portfolioData.openPositions > 0 && (
+            <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+              {portfolioData.openPositions}
+            </span>
+          )}
+        </Link>
+
+        <Link
           to="/monitoring"
           className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
         >

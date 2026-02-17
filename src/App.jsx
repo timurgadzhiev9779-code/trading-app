@@ -21,6 +21,7 @@ import MLTrainingPage from './pages/MLTrainingPage'
 import OptimizationPage from './pages/OptimizationPage'
 import LiveTestingPage from './pages/LiveTestingPage'
 import BackendStatusPage from './pages/BackendStatusPage'
+import PositionsPage from './pages/PositionsPage'
 
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="optimization" element={<OptimizationPage />} />
         <Route path="live-testing" element={<LiveTestingPage />} />
         <Route path="backend-status" element={<BackendStatusPage />} />
+        <Route path="positions" element={<PositionsPage />} />
       </Route>
     </Routes>
   )
