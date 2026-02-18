@@ -23,6 +23,7 @@ import LiveTestingPage from './pages/LiveTestingPage'
 import BackendStatusPage from './pages/BackendStatusPage'
 import PositionsPage from './pages/PositionsPage'
 import DashboardPage from './pages/DashboardPage'
+import TradesHistoryPage from './pages/TradesHistoryPage'
 
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="backend-status" element={<BackendStatusPage />} />
         <Route path="positions" element={<PositionsPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="trades-history" element={<TradesHistoryPage />} />
       </Route>
     </Routes>
   )

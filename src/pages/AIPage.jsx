@@ -372,6 +372,17 @@ const toggleStrategy = (strategyId) => {
         </Link>
 
         <Link
+          to="/trades-history"
+          className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
+        >
+          <BarChart3 className="text-[#00E5FF]" size={24} />
+          <div className="flex-1">
+            <p className="font-medium">История сделок</p>
+            <p className="text-gray-400 text-xs">Все закрытые позиции</p>
+          </div>
+        </Link>
+
+        <Link
           to="/manual-monitoring"
           className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
         >
