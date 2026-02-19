@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BotService } from '../services/botService'
-import { Power, TrendingUp, Zap, BarChart3, RefreshCw, Settings, Activity, ChevronDown, ChevronUp } from 'lucide-react'
+import { Power, TrendingUp, Zap, BarChart3, RefreshCw, Settings, Activity, ChevronDown, ChevronUp, Shield } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function AIPage() {
@@ -23,10 +23,34 @@ const botService = new BotService()
 useEffect(() => {
   loadBotsStatus()
   
-  // Обновляем каждые 5 секунд
-  const interval = setInterval(loadBotsStatus, 5000)
+  // WebSocket для реального времени
+  const ws = new WebSocket('wss://104.248.245.135:3001')
   
-  return () => clearInterval(interval)
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data)
+    
+    if (message.type === 'POSITIONS_UPDATE') {
+      if (message.data.portfolio) {
+        setPortfolioData(message.data.portfolio)
+      }
+      
+      // Обновляем стратегии
+      if (message.data.strategies) {
+        setStrategies(prev => prev.map(strat => {
+          const stratBots = message.data.strategies.find(s => s.id === strat.id)
+          return stratBots ? { ...strat, ...stratBots } : strat
+        }))
+      }
+    }
+  }
+  
+  // Обновление каждые 3 секунды
+  const interval = setInterval(loadBotsStatus, 3000)
+  
+  return () => {
+    ws.close()
+    clearInterval(interval)
+  }
 }, [])
 
 // Загрузить статус ботов
@@ -230,6 +254,9 @@ const toggleStrategy = (strategyId) => {
           const Icon = strategy.icon
           const isExpanded = expandedStrategy === strategy.id
           
+          // Считаем открытые позиции для этой стратегии
+          const openPositions = portfolioData.openPositions
+
           return (
             <div key={strategy.id} className={`bg-[#1A1A1A] rounded-xl border ${strategy.borderColor} overflow-hidden`}>
               {/* Strategy Header */}
@@ -238,13 +265,22 @@ const toggleStrategy = (strategyId) => {
                 className="w-full p-4 flex items-center justify-between hover:bg-[#252525] transition"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${strategy.bgColor}`}>
+                  <div className={`p-2 rounded-lg ${strategy.bgColor} relative`}>
                     <Icon size={20} className={strategy.color} />
+                    {/* Индикатор открытых позиций */}
+                    {strategy.bots && strategy.bots.some(b => b.openPositions > 0) && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                    )}
                   </div>
                   <div className="text-left">
                     <p className="font-bold">{strategy.name}</p>
                     <p className="text-xs text-gray-400">
                       Капитал: ${strategy.capital.toLocaleString()}
+                      {strategy.bots && strategy.bots.filter(b => b.openPositions > 0).length > 0 && (
+                        <span className="ml-2 text-green-500">
+                          • {strategy.bots.reduce((sum, b) => sum + (b.openPositions || 0), 0)} откр.
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -361,14 +397,19 @@ const toggleStrategy = (strategyId) => {
         </Link>
 
         <Link
-          to="/monitoring"
+          to="/positions"
           className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
         >
           <Activity className="text-[#00E5FF]" size={24} />
           <div className="flex-1">
             <p className="font-medium">AI Мониторинг</p>
-            <p className="text-gray-400 text-xs">Отслеживание открытых позиций</p>
+            <p className="text-gray-400 text-xs">Открытые позиции в реальном времени</p>
           </div>
+          {portfolioData.openPositions > 0 && (
+            <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+              {portfolioData.openPositions}
+            </span>
+          )}
         </Link>
 
         <Link
@@ -379,6 +420,17 @@ const toggleStrategy = (strategyId) => {
           <div className="flex-1">
             <p className="font-medium">История сделок</p>
             <p className="text-gray-400 text-xs">Все закрытые позиции</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/risk-manager"
+          className="bg-[#1A1A1A] border border-gray-800 rounded-xl p-4 hover:border-[#00E5FF]/30 transition flex items-center gap-3"
+        >
+          <Shield className="text-[#00E5FF]" size={24} />
+          <div className="flex-1">
+            <p className="font-medium">Risk Manager</p>
+            <p className="text-gray-400 text-xs">Защита капитала</p>
           </div>
         </Link>
 
