@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign, Target, Shield } from 'lucide-react'
+import { ArrowLeft, Clock, DollarSign, Target, Shield, Activity, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function PositionsPage() {
@@ -13,7 +13,10 @@ export default function PositionsPage() {
     loadPositions()
 
     // WebSocket подключение
-    const ws = new WebSocket('wss://104.248.245.135:3001')
+    const wsUrl = window.location.hostname === 'localhost' 
+      ? 'ws://104.248.245.135:3001' 
+      : 'wss://104.248.245.135:3001'
+    const ws = new WebSocket(wsUrl)
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data)
@@ -24,7 +27,6 @@ export default function PositionsPage() {
       }
 
       if (message.type === 'PRICE_UPDATE') {
-        // Обновляем цены в позициях
         setPositions(prev => prev.map(p => {
           if (p.symbol === message.symbol) {
             return { ...p, currentPrice: message.price }
@@ -42,7 +44,6 @@ export default function PositionsPage() {
       }
     }
 
-    // Обновляем каждые 5 сек
     const interval = setInterval(loadPositions, 5000)
 
     return () => {
@@ -55,7 +56,19 @@ export default function PositionsPage() {
     try {
       const response = await fetch('/api/positions')
       const data = await response.json()
-      setPositions(data.positions || [])
+      
+      // Сохраняем текущие цены при обновлении
+      setPositions(prev => {
+        const newPositions = data.positions || []
+        return newPositions.map(pos => {
+          const existing = prev.find(p => p.id === pos.id)
+          if (existing && existing.currentPrice) {
+            return { ...pos, currentPrice: existing.currentPrice }
+          }
+          return pos
+        })
+      })
+      
       setLoading(false)
     } catch (err) {
       console.error('Ошибка загрузки позиций:', err)
@@ -64,7 +77,6 @@ export default function PositionsPage() {
   }
 
   const calculatePnL = (position) => {
-    // Получаем текущую цену из WebSocket или fallback
     const currentPrice = position.currentPrice || position.entry
     const pnl = (currentPrice - position.entry) * position.quantity
     const pnlPercent = ((currentPrice - position.entry) / position.entry) * 100
@@ -77,13 +89,28 @@ export default function PositionsPage() {
     }
   }
 
+  const formatDateTime = (timestamp) => {
+    const date = new Date(timestamp)
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   const getTimeInTrade = (openTime) => {
-    const minutes = Math.floor((Date.now() - openTime) / 60000)
+    const ms = Date.now() - openTime
+    const minutes = Math.floor(ms / 60000)
+    
     if (minutes < 60) return `${minutes}м`
+    
     const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}ч`
+    if (hours < 24) return `${hours}ч ${minutes % 60}м`
+    
     const days = Math.floor(hours / 24)
-    return `${days}д`
+    return `${days}д ${hours % 24}ч`
   }
 
   return (
@@ -99,25 +126,6 @@ export default function PositionsPage() {
         </div>
       </div>
 
-      {/* Portfolio Stats */}
-      {portfolio && (
-        <div className="bg-[#1A1A1A] rounded-xl border border-gray-800 p-4 mb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">БАЛАНС</p>
-              <p className="text-xl font-bold">${portfolio.totalBalance.toLocaleString()}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 mb-1">P&L СЕГОДНЯ</p>
-              <p className={`text-xl font-bold ${
-                portfolio.todayPnL >= 0 ? 'text-green-500' : 'text-red-500'
-              }`}>
-                {portfolio.todayPnL >= 0 ? '+' : ''}${portfolio.todayPnL.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Loading */}
       {loading && (
@@ -147,16 +155,19 @@ export default function PositionsPage() {
 
             return (
               <div key={position.id} className="bg-[#1A1A1A] rounded-xl border border-gray-800">
-                {/* Компактная карточка */}
+                {/* КОМПАКТНАЯ КАРТОЧКА */}
                 <button
                   onClick={() => setSelectedTrade(isExpanded ? null : position)}
                   className="w-full p-3 flex items-center justify-between hover:bg-[#252525] transition"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${hasRealPrice ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
                     <div className="text-left">
                       <p className="font-bold">{position.symbol}</p>
-                      <p className="text-xs text-gray-400">{position.botId}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <Clock size={12} />
+                        <span>{getTimeInTrade(position.openTime)}</span>
+                      </div>
                     </div>
                   </div>
                   
@@ -170,67 +181,117 @@ export default function PositionsPage() {
                   </div>
                 </button>
 
-                {/* Развернутая информация */}
+                {/* РАЗВЕРНУТАЯ ИНФОРМАЦИЯ */}
                 {isExpanded && (
                   <div className="border-t border-gray-800 p-4 space-y-3">
-                    {/* Цены */}
+                    
+                    {/* ВРЕМЯ ОТКРЫТИЯ */}
+                    <div className="bg-[#0A0A0A] rounded-lg p-3 border border-gray-800">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-[#00E5FF] mt-[1px]" />
+                      
+                        <p className="font-medium leading-tight">
+                        {formatDateTime(position.openTime)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                    {/* БОТ */}
+                    <div className="bg-[#0A0A0A] rounded p-2">
+                      <p className="text-xs text-gray-400">Бот</p>
+                      <p className="font-medium text-sm">{position.botId}</p>
+                    </div>
+
+                    {/* ЦЕНЫ */}
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-[#0A0A0A] rounded p-2">
-                        <p className="text-xs text-gray-400">Вход</p>
+                      <div className="bg-[#0A0A0A] rounded p-3">
+                        <p className="text-xs text-gray-400 mb-1">Вход</p>
                         <p className="font-medium">${position.entry.toFixed(2)}</p>
                       </div>
-                      <div className="bg-[#0A0A0A] rounded p-2">
-                        <p className="text-xs text-gray-400">Текущая</p>
+                      <div className="bg-[#0A0A0A] rounded p-3">
+                        <div className="flex items-center gap-1 mb-1">
+                          <p className="text-xs text-gray-400">Текущая</p>
+                          {hasRealPrice ? (
+                            <Activity size={12} className="text-green-500" />
+                          ) : (
+                            <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </div>
                         <p className="font-medium">${currentPrice.toFixed(2)}</p>
                       </div>
                     </div>
 
-                    {/* Размер позиции */}
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded p-2">
+                    {/* РАЗМЕР ПОЗИЦИИ */}
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                       <p className="text-xs text-gray-400 mb-1">Размер позиции</p>
-                      <p className="font-bold text-[#00E5FF]">
+                      <p className="font-bold text-[#00E5FF] text-lg">
                         ${(position.entry * position.quantity).toFixed(2)}
                       </p>
-                      <p className="text-xs text-gray-500">{position.quantity.toFixed(6)} {position.symbol.replace('USDT', '')}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {position.quantity.toFixed(6)} {position.symbol.replace('USDT', '')}
+                      </p>
                     </div>
 
-                    {/* P&L */}
-                    <div className={`rounded p-3 ${
-                      pnl >= 0 ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
-                    }`}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">P&L</span>
+                    
+
+                    {/* ЦЕЛИ */}
+                    <div className="bg-[#0A0A0A] rounded-lg p-3 space-y-2">
+                      <h4 className="text-xs text-gray-400 font-bold uppercase mb-3">Цели</h4>
+                      
+                      {/* TP3 */}
+                      <div className="flex items-center justify-between py-2 border-b border-gray-800">
+                        <div className="flex items-center gap-2">
+                          <Target size={16} className="text-green-500" />
+                          <span className="text-sm text-green-400">TP3</span>
+                        </div>
                         <div className="text-right">
-  <p className={`font-bold ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-    {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
-    {!hasRealPrice && (
-      <span className="ml-1 text-xs text-gray-500">⏳</span>
-    )}
-  </p>
-  <p className={`text-xs ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-    {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
-  </p>
-</div>
+                          <p className="font-medium">${position.tp3.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">
+                            +{(((position.tp3 - position.entry) / position.entry) * 100).toFixed(2)}%
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Цели */}
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-green-500">TP3</span>
-                        <span>${position.tp3.toFixed(2)}</span>
+                      {/* TP2 */}
+                      <div className="flex items-center justify-between py-2 border-b border-gray-800">
+                        <div className="flex items-center gap-2">
+                          <Target size={16} className="text-green-500" />
+                          <span className="text-sm text-green-400">TP2</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${position.tp2.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">
+                            +{(((position.tp2 - position.entry) / position.entry) * 100).toFixed(2)}%
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-green-500">TP2</span>
-                        <span>${position.tp2.toFixed(2)}</span>
+
+                      {/* TP1 */}
+                      <div className="flex items-center justify-between py-2 border-b border-gray-800">
+                        <div className="flex items-center gap-2">
+                          <Target size={16} className="text-green-500" />
+                          <span className="text-sm text-green-400">TP1</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${position.tp1.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">
+                            +{(((position.tp1 - position.entry) / position.entry) * 100).toFixed(2)}%
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-green-500">TP1</span>
-                        <span>${position.tp1.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-gray-800">
-                        <span className="text-red-500">SL</span>
-                        <span>${position.sl.toFixed(2)}</span>
+
+                      {/* SL */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-2">
+                          <Shield size={16} className="text-red-500" />
+                          <span className="text-sm text-red-400">SL</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${position.sl.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">
+                            {(((position.sl - position.entry) / position.entry) * 100).toFixed(2)}%
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

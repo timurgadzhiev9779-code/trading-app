@@ -58,15 +58,51 @@ const loadBotsStatus = async () => {
   const data = await botService.getBotsStatus()
   
   if (data) {
-    setPortfolioData(data.portfolio)
+    // === ПОЛУЧАЕМ ОТКРЫТЫЕ ПОЗИЦИИ ===
+    const positionsRes = await fetch('/api/positions')
+    const positionsData = await positionsRes.json()
+    const openPositions = positionsData.positions || []
     
-    // Преобразуем данные для UI
+    // === СЧИТАЕМ UNREALIZED P&L ===
+    let totalUnrealizedPnL = 0
+    
+    openPositions.forEach(pos => {
+      const currentPrice = pos.currentPrice || pos.entry
+      const pnl = (currentPrice - pos.entry) * pos.quantity
+      totalUnrealizedPnL += pnl
+    })
+    
+    // === ОБНОВЛЯЕМ PORTFOLIO DATA ===
+    setPortfolioData({
+      ...data.portfolio,
+      todayPnL: totalUnrealizedPnL,
+      todayPnLPercent: (totalUnrealizedPnL / 10000) * 100
+    })
+    
+    // === ОБНОВЛЯЕМ СТРАТЕГИИ С P&L ===
     const mappedStrategies = data.strategies.map(strat => {
       const config = getStrategyConfig(strat.id)
+      
+      // Считаем P&L для этой стратегии
+      let stratPnL = 0
+      strat.bots.forEach(bot => {
+        const botPositions = openPositions.filter(p => p.botId === bot.id)
+        botPositions.forEach(pos => {
+          const currentPrice = pos.currentPrice || pos.entry
+          const pnl = (currentPrice - pos.entry) * pos.quantity
+          stratPnL += pnl
+          
+          // Обновляем P&L бота
+          bot.pnl = pnl
+          bot.trades = botPositions.length
+        })
+      })
       
       return {
         ...strat,
         ...config,
+        pnl: stratPnL,
+        pnlPercent: (stratPnL / strat.capital) * 100,
         bots: strat.bots.map(bot => ({
           ...bot,
           name: getModeLabel(bot.mode)
@@ -76,7 +112,7 @@ const loadBotsStatus = async () => {
     
     setStrategies(mappedStrategies)
     
-    // Определяем мастер-статус
+    // Мастер-статус
     const allActive = data.strategies.every(s => 
       s.bots.every(b => b.active)
     )
@@ -217,7 +253,7 @@ const toggleStrategy = (strategyId) => {
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400 mb-1">СЕГОДНЯ</p>
-            <p className={`text-2xl font-bold ${
+            <p className={`text-base font-bold ${
               portfolioData.todayPnL >= 0 ? 'text-green-500' : 'text-red-500'
             }`}>
               {portfolioData.todayPnL >= 0 ? '+' : ''}${portfolioData.todayPnL.toFixed(2)}
